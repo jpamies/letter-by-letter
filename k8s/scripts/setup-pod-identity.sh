@@ -7,12 +7,19 @@ if ! command -v aws &> /dev/null; then
     exit 1
 fi
 
-# Get AWS account ID
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to get AWS account ID. Make sure you're authenticated with AWS."
+# Check if AWS credentials are configured
+echo "Checking AWS authentication..."
+if ! aws sts get-caller-identity &> /dev/null; then
+    echo "Error: AWS authentication failed. Please configure your AWS credentials."
+    echo "You can configure AWS credentials using one of the following methods:"
+    echo "1. Run 'aws configure' to set up credentials"
+    echo "2. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables"
+    echo "3. Use an AWS profile with 'export AWS_PROFILE=your-profile-name'"
     exit 1
 fi
+
+# Get AWS account ID
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 # Get AWS region
 AWS_REGION=$(aws configure get region)
@@ -24,9 +31,13 @@ fi
 # Get cluster name
 echo "Fetching EKS cluster name..."
 CLUSTER_NAME=$(aws eks list-clusters --query "clusters[0]" --output text)
-if [ -z "$CLUSTER_NAME" ]; then
-    echo "Error: No EKS cluster found. Please specify your cluster name:"
+if [ -z "$CLUSTER_NAME" ] || [ "$CLUSTER_NAME" == "None" ]; then
+    echo "No EKS cluster found automatically. Please enter your cluster name:"
     read -p "Cluster name: " CLUSTER_NAME
+    if [ -z "$CLUSTER_NAME" ]; then
+        echo "Error: No cluster name provided. Exiting."
+        exit 1
+    fi
 fi
 
 echo "Using EKS cluster: $CLUSTER_NAME"
@@ -34,7 +45,7 @@ echo "Using EKS cluster: $CLUSTER_NAME"
 # Create IAM policy for ECR access if it doesn't exist
 POLICY_ARN=$(aws iam list-policies --query "Policies[?PolicyName=='EcrPullPolicy'].Arn" --output text)
     
-if [ -z "$POLICY_ARN" ]; then
+if [ -z "$POLICY_ARN" ] || [ "$POLICY_ARN" == "None" ]; then
     echo "Creating ECR pull policy..."
     POLICY_ARN=$(aws iam create-policy \
         --policy-name EcrPullPolicy \
@@ -63,14 +74,8 @@ else
     echo "Using existing ECR pull policy: $POLICY_ARN"
 fi
 
-# Create IAM role if it doesn't exist
-ROLE_ARN=$(aws iam list-roles --query "Roles[?RoleName=='EcrPullRole'].Arn" --output text)
-
-if [ -z "$ROLE_ARN" ]; then
-    echo "Creating IAM role for EKS Pod Identity..."
-    
-    # Create trust policy document
-    cat > /tmp/trust-policy.json << EOF
+# Create a simple trust policy for EKS Pod Identity
+cat > /tmp/trust-policy.json << EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -85,21 +90,40 @@ if [ -z "$ROLE_ARN" ]; then
 }
 EOF
 
+# Create or update IAM role
+ROLE_NAME="EcrPullRole-${CLUSTER_NAME}"
+ROLE_ARN=$(aws iam list-roles --query "Roles[?RoleName=='${ROLE_NAME}'].Arn" --output text)
+
+if [ -z "$ROLE_ARN" ] || [ "$ROLE_ARN" == "None" ]; then
+    echo "Creating IAM role for EKS Pod Identity..."
+    
     # Create the role
     ROLE_ARN=$(aws iam create-role \
-        --role-name EcrPullRole \
+        --role-name "${ROLE_NAME}" \
         --assume-role-policy-document file:///tmp/trust-policy.json \
         --query "Role.Arn" --output text)
     
     # Attach the policy to the role
     aws iam attach-role-policy \
-        --role-name EcrPullRole \
+        --role-name "${ROLE_NAME}" \
         --policy-arn "$POLICY_ARN"
     
     echo "Created role with ARN: $ROLE_ARN"
 else
-    echo "Using existing IAM role: $ROLE_ARN"
+    echo "Updating existing IAM role: $ROLE_ARN"
+    aws iam update-assume-role-policy \
+        --role-name "${ROLE_NAME}" \
+        --policy-document file:///tmp/trust-policy.json
+    
+    # Ensure policy is attached
+    aws iam attach-role-policy \
+        --role-name "${ROLE_NAME}" \
+        --policy-arn "$POLICY_ARN"
 fi
+
+# Create namespace if it doesn't exist
+echo "Creating namespace if it doesn't exist..."
+kubectl get namespace letter-image-generator &> /dev/null || kubectl create namespace letter-image-generator
 
 # Create service account if it doesn't exist
 echo "Creating Kubernetes service account..."
