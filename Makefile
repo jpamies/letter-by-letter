@@ -107,11 +107,22 @@ create-number-service:
 	echo "Creating number service for $$number..."; \
 	cp -r templates/number-service/* number-services/$$number-service/ || echo "No template found, creating empty directory"
 
+# Variables
+PODMAN := podman
+K8S_BASE := k8s/base
+K8S_DEV := k8s/overlays/dev
+K8S_PROD := k8s/overlays/prod
+K8S_SCRIPTS := k8s/scripts
+
 # Kubernetes targets
-.PHONY: k8s-local k8s-down k8s-dev k8s-prod k8s-create-namespace
+.PHONY: k8s-local k8s-down k8s-dev k8s-prod k8s-create-namespace k8s-update-images
 k8s-create-namespace:
 	@echo "Creating Kubernetes namespace..."
 	kubectl apply -f $(K8S_DEV)/../base/namespaces.yaml
+
+k8s-update-images:
+	@echo "Updating ECR image references..."
+	cd $(K8S_SCRIPTS) && ./update-images.sh
 
 k8s-local:
 	@echo "Deploying to local Kubernetes using podman..."
@@ -126,7 +137,7 @@ k8s-dev:
 	kubectl apply -f $(K8S_DEV)/../base/namespaces.yaml
 	kubectl apply -k $(K8S_DEV)
 
-k8s-prod:
+k8s-prod: k8s-update-images
 	@echo "Deploying to production Kubernetes cluster..."
 	kubectl apply -f $(K8S_PROD)/../base/namespaces.yaml
 	kubectl apply -k $(K8S_PROD)

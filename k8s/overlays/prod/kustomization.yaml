@@ -15,13 +15,15 @@ labels:
 patches:
 - path: replicas-patch.yaml
 
+# Note: These image references need to be updated with actual values before deployment
+# Run the update-images.sh script to replace these with your actual ECR repository URLs
 images:
 - name: letter-image-generator-frontend
-  newName: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/letter-image-generator-frontend
+  newName: 123456789012.dkr.ecr.us-west-2.amazonaws.com/letter-image-generator-frontend
   newTag: latest
 - name: letter-image-generator-orchestrator
-  newName: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/letter-image-generator-orchestrator
+  newName: 123456789012.dkr.ecr.us-west-2.amazonaws.com/letter-image-generator-orchestrator
   newTag: latest
 - name: letter-image-generator-compositor
-  newName: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/letter-image-generator-compositor
+  newName: 123456789012.dkr.ecr.us-west-2.amazonaws.com/letter-image-generator-compositor
   newTag: latest

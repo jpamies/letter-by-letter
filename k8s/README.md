@@ -11,6 +11,8 @@ This directory contains Kubernetes manifests for deploying the Letter-by-Letter 
 - `overlays/`: Environment-specific configurations
   - `dev/`: Development environment configuration
   - `prod/`: Production environment configuration with EKS AutoMode settings
+- `scripts/`: Helper scripts for deployment
+  - `update-images.sh`: Script to update ECR image references with actual AWS account and region
 
 ## Deployment Instructions
 
@@ -28,10 +30,10 @@ podman kube down k8s/overlays/dev/
 
 ### Deploying to EKS
 
-1. Set environment variables:
+1. Set environment variables and update image references:
 ```bash
-export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-export AWS_REGION=$(aws configure get region)
+# This will be done automatically when running make k8s-prod
+make k8s-update-images
 ```
 
 2. Create the required namespace:
@@ -80,3 +82,4 @@ When adding new letter or number services:
 1. Create a new deployment and service manifest in the `base/` directory
 2. Add the new files to the `kustomization.yaml` in the `base/` directory
 3. Update the overlays as needed for environment-specific configurations
+4. Update the `update-images.sh` script if the new service requires ECR images
