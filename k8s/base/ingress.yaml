@@ -3,10 +3,19 @@ kind: Ingress
 metadata:
   name: letter-image-generator-ingress
   annotations:
-    kubernetes.io/ingress.class: "nginx"
+    kubernetes.io/ingress.class: "alb"
+    alb.ingress.kubernetes.io/scheme: "internet-facing"
+    alb.ingress.kubernetes.io/target-type: "ip"
+    alb.ingress.kubernetes.io/healthcheck-path: "/"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/group.name: "letter-image-generator"
+    # Enable Route 53 integration
+    external-dns.alpha.kubernetes.io/hostname: "l2l.demo.aws.jpamies.com"
 spec:
   rules:
-  - http:
+  - host: "l2l.demo.aws.jpamies.com"
+    http:
       paths:
       - path: /
         pathType: Prefix
