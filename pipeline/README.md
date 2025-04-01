@@ -1,84 +1,95 @@
 # CI/CD Pipeline for Letter-by-Letter Image Generator
 
-This directory contains CloudFormation templates to set up a complete CI/CD pipeline for the Letter-by-Letter Image Generator application on AWS.
+This directory contains CloudFormation templates and scripts to set up the CI/CD pipeline for the Letter-by-Letter Image Generator EKS AutoMode Demo.
 
-## Pipeline Architecture
+## Components
 
-The pipeline uses the following AWS services:
+- **ECR Repositories**: For storing Docker images of each service
+- **CodeCommit Repository**: For source code version control
+- **CodeBuild Projects**: For building Docker images
+- **CodePipeline**: For orchestrating the CI/CD workflow
 
-- **AWS CodeCommit**: Git repository to store the application code
-- **AWS CodeBuild**: Build service to create Docker images for each microservice
-- **AWS CodePipeline**: Orchestration service to manage the CI/CD workflow
-- **Amazon ECR**: Container registry to store the Docker images
-
-## Pipeline Workflow
-
-1. Code is pushed to the CodeCommit repository
-2. CodePipeline detects changes and triggers the pipeline
-3. Source code is pulled from CodeCommit
-4. CodeBuild builds Docker images for each service (frontend, orchestrator, compositor)
-5. Images are pushed to Amazon ECR repositories
-
-## Deployment Instructions
+## Setup Instructions
 
 ### Prerequisites
 
-- AWS CLI installed and configured with appropriate permissions
-- An AWS account with access to create the required resources
+- AWS CLI installed and configured
+- Appropriate IAM permissions
+- The AmazonECR-FullAccess policy should be created
 
-### Deploying the Pipeline
+### Option 1: Complete Pipeline Setup
 
-1. Deploy the CloudFormation stack:
-
-```bash
-aws cloudformation create-stack \
-  --stack-name letter-image-generator-pipeline \
-  --template-body file://pipeline.yaml \
-  --capabilities CAPABILITY_IAM \
-  --parameters \
-    ParameterKey=RepositoryName,ParameterValue=letter-image-generator \
-    ParameterKey=BranchName,ParameterValue=main \
-    ParameterKey=ProjectName,ParameterValue=letter-image-generator
-```
-
-2. After the stack is created, get the CodeCommit repository URL:
+Deploy the complete pipeline with a single command:
 
 ```bash
-aws cloudformation describe-stacks \
-  --stack-name letter-image-generator-pipeline \
-  --query "Stacks[0].Outputs[?OutputKey=='CodeCommitRepositoryUrl'].OutputValue" \
-  --output text
+./scripts/deploy-pipeline.sh
 ```
 
-3. Push your code to the CodeCommit repository:
+This will:
+1. Create ECR repositories for each service
+2. Set up S3 buckets for artifacts
+3. Configure CodeBuild projects
+4. Create the CodePipeline
+
+### Option 2: Step-by-Step Setup
+
+If you prefer to set up components individually:
+
+#### 1. Create CodeCommit Repository
 
 ```bash
-# Add the CodeCommit repository as a remote
-git remote add codecommit <CODECOMMIT_REPO_URL>
-
-# Push your code to CodeCommit
-git push codecommit main
+./scripts/create-codecommit-repo.sh
 ```
 
-4. The pipeline will automatically start once code is pushed to the repository.
+This creates a CodeCommit repository in the eu-west-1 region.
 
-## Monitoring the Pipeline
-
-You can monitor the pipeline in the AWS Management Console:
-
-1. Open the AWS CodePipeline console
-2. Select the `letter-image-generator-pipeline`
-3. View the pipeline execution status and details
-
-## ECR Repository URIs
-
-After the stack is created, you can get the ECR repository URIs using:
+#### 2. Create ECR Repositories
 
 ```bash
-aws cloudformation describe-stacks \
-  --stack-name letter-image-generator-pipeline \
-  --query "Stacks[0].Outputs[?starts_with(OutputKey, 'EcrRepository')].{Key:OutputKey,Value:OutputValue}" \
-  --output table
+./scripts/create-ecr-repos.sh
 ```
 
-Use these URIs to pull the images for deployment to EKS.
+This creates ECR repositories for each service (frontend, orchestrator, compositor) in the eu-south-2 region.
+
+#### 3. Create CodeBuild Projects
+
+```bash
+./scripts/create-codebuild-projects.sh
+```
+
+This creates individual CodeBuild projects for each service.
+
+## Pipeline Workflow
+
+1. **Source Stage**: Code changes are detected in the CodeCommit repository
+2. **Build Stage**: Docker images are built and pushed to ECR repositories
+3. **Deploy Stage**: (To be implemented) Deploy to EKS cluster
+
+## Project Structure
+
+```
+pipeline/
+├── pipeline.yaml                # Main CloudFormation template
+├── buildspec.yml               # Build specification for CodeBuild
+├── README.md                   # This documentation
+└── scripts/
+    ├── create-codecommit-repo.sh    # Script to create CodeCommit repository
+    ├── create-codebuild-projects.sh # Script to create CodeBuild projects
+    ├── create-ecr-repos.sh          # Script to create ECR repositories
+    └── deploy-pipeline.sh           # Main deployment script
+```
+
+## Troubleshooting
+
+If you encounter issues with the pipeline deployment:
+
+1. Check CloudFormation stack events for error details
+2. Ensure IAM permissions are correctly configured
+3. Verify that the CodeCommit repository exists in the specified region
+4. Check that ECR repositories are accessible
+
+## Notes
+
+- The pipeline is configured to work across multiple AWS regions (CodeCommit in eu-west-1, build/deploy in eu-south-2)
+- Each service has its own ECR repository with lifecycle policies to manage image retention
+- The pipeline automatically triggers on code changes to the main branch

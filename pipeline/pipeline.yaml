@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CI/CD Pipeline for Letter-by-Letter Image Generator EKS AutoMode Demo'
+Description: 'CI/CD Pipeline for Letter-by-Letter Image Generator EKS AutoMode Demo (Multi-Region)'
 
 Parameters:
   RepositoryName:
@@ -16,6 +16,11 @@ Parameters:
     Type: String
     Default: letter-image-generator
     Description: Name prefix for the project resources
+  
+  CodeCommitRegion:
+    Type: String
+    Default: eu-west-1
+    Description: Region for CodeCommit repository
 
 Resources:
   # ECR Repositories for each service
@@ -94,12 +99,28 @@ Resources:
             ]
           }
 
-  # CodeCommit Repository
-  CodeRepository:
-    Type: AWS::CodeCommit::Repository
+  # S3 Buckets for Pipeline Artifacts (one per region)
+  ArtifactBucketEuSouth2:
+    Type: AWS::S3::Bucket
     Properties:
-      RepositoryName: !Ref RepositoryName
-      RepositoryDescription: 'Repository for Letter-by-Letter Image Generator EKS AutoMode Demo'
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+
+  ArtifactBucketEuWest1:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
 
   # CodeBuild Service Role
   CodeBuildServiceRole:
@@ -113,7 +134,7 @@ Resources:
               Service: codebuild.amazonaws.com
             Action: 'sts:AssumeRole'
       ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/AmazonECR-FullAccess'
+        - 'arn:aws:iam::037495631109:policy/AmazonECR-FullAccess'
         - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
       Policies:
         - PolicyName: CodeBuildAccess
@@ -131,7 +152,9 @@ Resources:
                   - 's3:GetObject'
                   - 's3:GetObjectVersion'
                   - 's3:PutObject'
-                Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}/*'
+                Resource: 
+                  - !Sub 'arn:aws:s3:::${ArtifactBucketEuSouth2}/*'
+                  - !Sub 'arn:aws:s3:::${ArtifactBucketEuWest1}/*'
 
   # CodePipeline Service Role
   CodePipelineServiceRole:
@@ -146,7 +169,6 @@ Resources:
             Action: 'sts:AssumeRole'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/AWSCodeBuildAdminAccess'
-        - 'arn:aws:iam::aws:policy/AWSCodeStarFullAccess'
       Policies:
         - PolicyName: CodePipelineAccess
           PolicyDocument:
@@ -159,8 +181,10 @@ Resources:
                   - 's3:PutObject'
                   - 's3:GetBucketVersioning'
                 Resource:
-                  - !Sub 'arn:aws:s3:::${ArtifactBucket}'
-                  - !Sub 'arn:aws:s3:::${ArtifactBucket}/*'
+                  - !Sub 'arn:aws:s3:::${ArtifactBucketEuSouth2}'
+                  - !Sub 'arn:aws:s3:::${ArtifactBucketEuSouth2}/*'
+                  - !Sub 'arn:aws:s3:::${ArtifactBucketEuWest1}'
+                  - !Sub 'arn:aws:s3:::${ArtifactBucketEuWest1}/*'
               - Effect: Allow
                 Action:
                   - 'codecommit:GetBranch'
@@ -168,19 +192,12 @@ Resources:
                   - 'codecommit:UploadArchive'
                   - 'codecommit:GetUploadArchiveStatus'
                   - 'codecommit:CancelUploadArchive'
-                Resource: !GetAtt CodeRepository.Arn
-
-  # S3 Bucket for Pipeline Artifacts
-  ArtifactBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      VersioningConfiguration:
-        Status: Enabled
-      LifecycleConfiguration:
-        Rules:
-          - Id: DeleteOldArtifacts
-            Status: Enabled
-            ExpirationInDays: 30
+                Resource: !Sub 'arn:aws:codecommit:${CodeCommitRegion}:${AWS::AccountId}:${RepositoryName}'
+              - Effect: Allow
+                Action:
+                  - 'codebuild:BatchGetBuilds'
+                  - 'codebuild:StartBuild'
+                Resource: '*'
 
   # CodeBuild Projects for each service
   FrontendBuildProject:
@@ -327,9 +344,15 @@ Resources:
     Properties:
       Name: !Sub ${ProjectName}-pipeline
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
-      ArtifactStore:
-        Type: S3
-        Location: !Ref ArtifactBucket
+      ArtifactStores:
+        - Region: !Ref AWS::Region
+          ArtifactStore:
+            Type: S3
+            Location: !Ref ArtifactBucketEuSouth2
+        - Region: !Ref CodeCommitRegion
+          ArtifactStore:
+            Type: S3
+            Location: !Ref ArtifactBucketEuWest1
       Stages:
         - Name: Source
           Actions:
@@ -342,6 +365,8 @@ Resources:
               Configuration:
                 RepositoryName: !Ref RepositoryName
                 BranchName: !Ref BranchName
+                PollForSourceChanges: true
+              Region: !Ref CodeCommitRegion
               OutputArtifacts:
                 - Name: SourceCode
         - Name: Build
@@ -354,6 +379,7 @@ Resources:
                 Version: '1'
               Configuration:
                 ProjectName: !Ref FrontendBuildProject
+              Region: !Ref AWS::Region
               InputArtifacts:
                 - Name: SourceCode
               OutputArtifacts:
@@ -366,6 +392,7 @@ Resources:
                 Version: '1'
               Configuration:
                 ProjectName: !Ref OrchestratorBuildProject
+              Region: !Ref AWS::Region
               InputArtifacts:
                 - Name: SourceCode
               OutputArtifacts:
@@ -378,6 +405,7 @@ Resources:
                 Version: '1'
               Configuration:
                 ProjectName: !Ref CompositorBuildProject
+              Region: !Ref AWS::Region
               InputArtifacts:
                 - Name: SourceCode
               OutputArtifacts:
@@ -386,7 +414,7 @@ Resources:
 Outputs:
   CodeCommitRepositoryUrl:
     Description: URL to the CodeCommit repository
-    Value: !GetAtt CodeRepository.CloneUrlHttp
+    Value: !Sub https://git-codecommit.${CodeCommitRegion}.amazonaws.com/v1/repos/${RepositoryName}
   
   FrontendEcrRepositoryUri:
     Description: URI for the frontend ECR repository
