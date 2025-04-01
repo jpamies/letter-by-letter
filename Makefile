@@ -121,10 +121,12 @@ k8s-down:
 	@echo "Removing local Kubernetes deployment..."
 	$(PODMAN) kube down $(K8S_DEV)
 
-k8s-dev: k8s-create-namespaces
+k8s-dev:
 	@echo "Deploying to development Kubernetes cluster..."
+	kubectl apply -f $(K8S_DEV)/../base/namespaces.yaml
 	kubectl apply -k $(K8S_DEV)
 
-k8s-prod: k8s-create-namespaces
+k8s-prod:
 	@echo "Deploying to production Kubernetes cluster..."
+	kubectl apply -f $(K8S_PROD)/../base/namespaces.yaml
 	kubectl apply -k $(K8S_PROD)

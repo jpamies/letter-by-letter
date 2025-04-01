@@ -6,8 +6,10 @@ resources:
 
 namespace: letter-image-generator-dev
 
-commonLabels:
-  environment: dev
+labels:
+- includeSelectors: true
+  pairs:
+    environment: dev
 
 patches:
 - path: replicas-patch.yaml

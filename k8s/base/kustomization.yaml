@@ -10,5 +10,7 @@ resources:
 - compositor-deployment.yaml
 - compositor-service.yaml
 
-commonLabels:
-  app.kubernetes.io/part-of: letter-image-generator
+labels:
+- includeSelectors: true
+  pairs:
+    app.kubernetes.io/part-of: letter-image-generator
