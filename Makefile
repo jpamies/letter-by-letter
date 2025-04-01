@@ -1,159 +1,61 @@
-# Makefile for Letter-by-Letter Image Generator
-# Uses podman instead of docker for local development
-
-# Variables
-PODMAN = podman
-COMPOSE = $(PODMAN)-compose
-COMPOSE_FILE = docker-compose.yml
-SERVICES = frontend orchestrator-service image-compositor-service
-K8S_DEV = k8s/overlays/dev
-K8S_PROD = k8s/overlays/prod
-
-# Default target
-.PHONY: help
-help:
-	@echo "Available targets:"
-	@echo "  local       - Build and run all services locally using podman"
-	@echo "  build       - Build all service images"
-	@echo "  up          - Start all services"
-	@echo "  down        - Stop all services"
-	@echo "  clean       - Remove all containers and images"
-	@echo "  logs        - Show logs from all services"
-	@echo "  ps          - Show running containers"
-	@echo "  build-<service> - Build a specific service (e.g., build-frontend)"
-	@echo "  test        - Run tests for all services"
-	@echo "  k8s-local   - Deploy to local Kubernetes using podman"
-	@echo "  k8s-down    - Remove local Kubernetes deployment"
-	@echo "  k8s-dev     - Deploy to development Kubernetes cluster"
-	@echo "  k8s-prod    - Deploy to production Kubernetes cluster"
-
-# Build and run locally
-.PHONY: local
-local: build up
-
-# Build all services
-.PHONY: build
-build:
-	@echo "Building all services with podman..."
-	$(COMPOSE) -f $(COMPOSE_FILE) build
-
-# Start all services
-.PHONY: up
-up:
-	@echo "Starting all services with podman..."
-	$(COMPOSE) -f $(COMPOSE_FILE) up -d
-
-# Stop all services
-.PHONY: down
-down:
-	@echo "Stopping all services..."
-	$(COMPOSE) -f $(COMPOSE_FILE) down
-
-# Show logs
-.PHONY: logs
-logs:
-	@echo "Showing logs from all services..."
-	$(COMPOSE) -f $(COMPOSE_FILE) logs -f
-
-# Show running containers
-.PHONY: ps
-ps:
-	@echo "Showing running containers..."
-	$(COMPOSE) -f $(COMPOSE_FILE) ps
-
-# Clean up
-.PHONY: clean
-clean: down
-	@echo "Removing all containers and images..."
-	$(PODMAN) system prune -af
-
-# Build individual services
-.PHONY: build-frontend build-orchestrator build-compositor
-build-frontend:
-	@echo "Building frontend service..."
-	$(COMPOSE) -f $(COMPOSE_FILE) build frontend
-
-build-orchestrator:
-	@echo "Building orchestrator service..."
-	$(COMPOSE) -f $(COMPOSE_FILE) build orchestrator
-
-build-compositor:
-	@echo "Building image compositor service..."
-	$(COMPOSE) -f $(COMPOSE_FILE) build compositor
-
-# Run tests
-.PHONY: test
-test:
-	@echo "Running tests for all services..."
-	@for service in $(SERVICES); do \
-		echo "Testing $$service..."; \
-		cd $$service && npm test || echo "No tests found for $$service"; \
-		cd ..; \
-	done
-
-# Create letter service
-.PHONY: create-letter-service
-create-letter-service:
-	@read -p "Enter letter (A-Z): " letter; \
-	mkdir -p letter-services/$$letter-service; \
-	echo "Creating letter service for $$letter..."; \
-	cp -r templates/letter-service/* letter-services/$$letter-service/ || echo "No template found, creating empty directory"
-
-# Create number service
-.PHONY: create-number-service
-create-number-service:
-	@read -p "Enter number (0-9): " number; \
-	mkdir -p number-services/$$number-service; \
-	echo "Creating number service for $$number..."; \
-	cp -r templates/number-service/* number-services/$$number-service/ || echo "No template found, creating empty directory"
-
 # Variables
 PODMAN := podman
-K8S_BASE := k8s/base
-K8S_DEV := k8s/overlays/dev
-K8S_PROD := k8s/overlays/prod
-K8S_SCRIPTS := k8s/scripts
+AWS_ACCOUNT_ID := $(shell aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "123456789012")
+AWS_REGION := $(shell aws configure get region 2>/dev/null || echo "us-west-2")
+ECR_REGISTRY := $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 
-# Kubernetes targets
-.PHONY: k8s-local k8s-down k8s-dev k8s-prod k8s-create-namespace k8s-update-images k8s-create-ecr k8s-build-push k8s-setup-pod-identity
+# Local development targets
+.PHONY: local build ps logs down
 
-k8s-create-namespace:
-	@echo "Creating Kubernetes namespace..."
-	kubectl apply -f $(K8S_BASE)/namespaces.yaml
+build:
+	@echo "Building all services with podman..."
+	$(PODMAN) compose -f docker-compose.yml build
 
-k8s-update-images:
-	@echo "Updating ECR image references..."
-	cd $(K8S_SCRIPTS) && ./update-images.sh
+local: build
+	@echo "Starting all services with podman..."
+	$(PODMAN) compose -f docker-compose.yml up -d
 
-k8s-create-ecr:
-	@echo "Creating ECR repositories..."
-	cd $(K8S_SCRIPTS) && ./create-ecr-repos.sh
+ps:
+	@echo "Listing running services..."
+	$(PODMAN) compose -f docker-compose.yml ps
 
-k8s-build-push:
-	@echo "Building and pushing images to ECR..."
-	cd $(K8S_SCRIPTS) && ./build-and-push-images.sh
+logs:
+	@echo "Showing logs from all services..."
+	$(PODMAN) compose -f docker-compose.yml logs
+
+down:
+	@echo "Stopping all services..."
+	$(PODMAN) compose -f docker-compose.yml down
+
+# Kubernetes deployment targets
+.PHONY: k8s-local k8s-down k8s-prod k8s-restart k8s-setup-pod-identity
+
+k8s-local:
+	@echo "Deploying to local Kubernetes..."
+	kubectl apply -k k8s/overlays/local
+
+k8s-down:
+	@echo "Removing Kubernetes deployment..."
+	kubectl delete -k k8s/overlays/local
+
+k8s-prod:
+	@echo "Deploying to production EKS cluster..."
+	kubectl apply -k k8s/overlays/prod
+
+k8s-restart:
+	@echo "Restarting deployments to pick up new images..."
+	kubectl rollout restart deployment/frontend -n letter-image-generator
+	kubectl rollout restart deployment/orchestrator -n letter-image-generator
+	kubectl rollout restart deployment/compositor -n letter-image-generator
+	@echo "Deployments restarted. Use 'kubectl get pods -n letter-image-generator' to monitor the rollout."
 
 k8s-setup-pod-identity:
 	@echo "Setting up EKS Pod Identity for ECR access..."
-	cd $(K8S_SCRIPTS) && ./setup-pod-identity.sh
+	cd k8s/scripts && ./setup-pod-identity.sh
 
-k8s-local:
-	@echo "Deploying to local Kubernetes using podman..."
-	$(PODMAN) kube play --network=podman $(K8S_DEV)
+# Build and push images to ECR
+.PHONY: ecr-build-push
 
-k8s-down:
-	@echo "Removing local Kubernetes deployment..."
-	$(PODMAN) kube down $(K8S_DEV)
-
-k8s-dev:
-	@echo "Deploying to development Kubernetes cluster..."
-	kubectl apply -f $(K8S_BASE)/namespaces.yaml
-	kubectl apply -k $(K8S_DEV)
-
-k8s-prod-prepare: k8s-create-ecr k8s-build-push k8s-update-images k8s-setup-pod-identity
-	@echo "Production deployment preparation complete."
-
-k8s-prod: k8s-prod-prepare
-	@echo "Deploying to production Kubernetes cluster..."
-	kubectl apply -f $(K8S_BASE)/namespaces.yaml
-	kubectl apply -k $(K8S_PROD)
+ecr-build-push:
+	@echo "Building and pushing images to ECR..."
+	cd k8s/scripts && ./build-and-push-images.sh

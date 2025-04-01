@@ -18,6 +18,7 @@ spec:
       containers:
       - name: compositor
         image: letter-image-generator-compositor:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 3002
         env:
