@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script creates CodeBuild projects for the Letter-by-Letter Image Generator services
+# This script creates CodeBuild projects for each service
 
 # Check if AWS CLI is installed
 if ! command -v aws &> /dev/null; then
@@ -11,7 +11,7 @@ fi
 # Set default values
 PROJECT_NAME="letter-image-generator"
 REGION="eu-south-2"
-ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -27,6 +27,11 @@ while [[ $# -gt 0 ]]; do
         shift
         shift
         ;;
+        --account-id)
+        ACCOUNT_ID="$2"
+        shift
+        shift
+        ;;
         *)
         echo "Unknown option: $1"
         exit 1
@@ -34,14 +39,18 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Creating CodeBuild projects for: $PROJECT_NAME in region $REGION"
+echo "Creating CodeBuild projects for: $PROJECT_NAME in region: $REGION"
 
-# Create IAM role for CodeBuild
-echo "Creating IAM role for CodeBuild..."
+# Create service role for CodeBuild if it doesn't exist
 ROLE_NAME="${PROJECT_NAME}-codebuild-role"
+ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
 
-# Create trust policy document
-cat > trust-policy.json << EOF
+# Check if role exists
+if ! aws iam get-role --role-name "$ROLE_NAME" &> /dev/null; then
+    echo "Creating IAM role: $ROLE_NAME"
+    
+    # Create trust policy document
+    cat > trust-policy.json << EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -56,8 +65,15 @@ cat > trust-policy.json << EOF
 }
 EOF
 
-# Create policy document
-cat > policy.json << EOF
+    # Create role
+    aws iam create-role --role-name "$ROLE_NAME" --assume-role-policy-document file://trust-policy.json
+
+    # Attach policies
+    aws iam attach-role-policy --role-name "$ROLE_NAME" --policy-arn "arn:aws:iam::aws:policy/AmazonECR-FullAccess"
+    aws iam attach-role-policy --role-name "$ROLE_NAME" --policy-arn "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+    
+    # Create custom policy for CloudWatch Logs
+    cat > logs-policy.json << EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -69,103 +85,79 @@ cat > policy.json << EOF
         "logs:PutLogEvents"
       ],
       "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ecr:GetAuthorizationToken",
-        "ecr:BatchCheckLayerAvailability",
-        "ecr:GetDownloadUrlForLayer",
-        "ecr:BatchGetImage",
-        "ecr:InitiateLayerUpload",
-        "ecr:UploadLayerPart",
-        "ecr:CompleteLayerUpload",
-        "ecr:PutImage"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:GetObjectVersion",
-        "s3:PutObject"
-      ],
-      "Resource": "*"
     }
   ]
 }
 EOF
 
-# Create IAM role
-aws iam create-role --role-name $ROLE_NAME --assume-role-policy-document file://trust-policy.json
-aws iam put-role-policy --role-name $ROLE_NAME --policy-name "${PROJECT_NAME}-codebuild-policy" --policy-document file://policy.json
-
-# Clean up temporary files
-rm trust-policy.json policy.json
-
-# Wait for role to be available
-echo "Waiting for IAM role to be available..."
-sleep 10
+    aws iam put-role-policy --role-name "$ROLE_NAME" --policy-name "CloudWatchLogsAccess" --policy-document file://logs-policy.json
+    
+    # Clean up temporary files
+    rm trust-policy.json logs-policy.json
+    
+    echo "IAM role created: $ROLE_NAME"
+else
+    echo "Using existing IAM role: $ROLE_NAME"
+fi
 
 # Create CodeBuild projects for each service
-for service in "frontend" "orchestrator" "compositor"; do
-    build_project_name="${PROJECT_NAME}-${service}-build"
-    echo "Creating CodeBuild project: $build_project_name"
+services=("frontend" "orchestrator" "compositor")
+service_dirs=("frontend" "orchestrator-service" "image-compositor-service")
+
+for i in "${!services[@]}"; do
+    service="${services[$i]}"
+    service_dir="${service_dirs[$i]}"
+    project_name="${PROJECT_NAME}-${service}-build"
+    repo_name="${PROJECT_NAME}-${service}"
+    repo_uri="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${repo_name}"
     
-    # Create buildspec file
-    cat > buildspec.json << EOF
+    echo "Creating CodeBuild project: $project_name"
+    
+    # Create project definition
+    cat > project-def.json << EOF
 {
-  "version": "0.2",
-  "phases": {
-    "pre_build": {
-      "commands": [
-        "echo Logging in to Amazon ECR...",
-        "aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com",
-        "COMMIT_HASH=\$(echo \$CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)",
-        "IMAGE_TAG=\${COMMIT_HASH:=latest}"
-      ]
-    },
-    "build": {
-      "commands": [
-        "echo Building the Docker image...",
-        "cd $service",
-        "docker build -t $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${PROJECT_NAME}-${service}:latest .",
-        "docker tag $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${PROJECT_NAME}-${service}:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${PROJECT_NAME}-${service}:\$IMAGE_TAG"
-      ]
-    },
-    "post_build": {
-      "commands": [
-        "echo Pushing the Docker image...",
-        "docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${PROJECT_NAME}-${service}:latest",
-        "docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${PROJECT_NAME}-${service}:\$IMAGE_TAG",
-        "echo Writing image definitions file...",
-        "echo {\\"ImageURI\\":\\"\$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${PROJECT_NAME}-${service}:\$IMAGE_TAG\\"} > imageDefinition.json"
-      ]
-    }
+  "name": "${project_name}",
+  "description": "Build project for the ${service} service",
+  "source": {
+    "type": "GITHUB",
+    "location": "https://github.com/yourusername/${PROJECT_NAME}.git",
+    "gitCloneDepth": 1,
+    "buildspec": "pipeline/buildspec.yml"
   },
   "artifacts": {
-    "files": [
-      "imageDefinition.json",
-      "appspec.yml",
-      "taskdef.json"
+    "type": "NO_ARTIFACTS"
+  },
+  "environment": {
+    "type": "LINUX_CONTAINER",
+    "image": "aws/codebuild/amazonlinux2-x86_64-standard:3.0",
+    "computeType": "BUILD_GENERAL1_SMALL",
+    "privilegedMode": true,
+    "environmentVariables": [
+      {
+        "name": "ECR_REPOSITORY_URI",
+        "value": "${repo_uri}"
+      },
+      {
+        "name": "SERVICE_DIR",
+        "value": "${service_dir}"
+      }
     ]
-  }
+  },
+  "serviceRole": "${ROLE_ARN}"
 }
 EOF
 
-    # Create CodeBuild project
-    aws codebuild create-project \
-      --name $build_project_name \
-      --description "Build project for the $service service" \
-      --service-role "arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME" \
-      --artifacts type=NO_ARTIFACTS \
-      --environment "type=LINUX_CONTAINER,computeType=BUILD_GENERAL1_SMALL,image=aws/codebuild/amazonlinux2-x86_64-standard:3.0,privilegedMode=true" \
-      --source "type=CODECOMMIT,location=https://git-codecommit.eu-west-1.amazonaws.com/v1/repos/$PROJECT_NAME,buildspec=$(cat buildspec.json)" \
-      --region $REGION
+    # Create or update the project
+    if aws codebuild batch-get-projects --names "$project_name" --query "projects[0].name" --output text 2>/dev/null | grep -q "$project_name"; then
+        echo "Updating existing CodeBuild project: $project_name"
+        aws codebuild update-project --cli-input-json file://project-def.json > /dev/null
+    else
+        echo "Creating new CodeBuild project: $project_name"
+        aws codebuild create-project --cli-input-json file://project-def.json > /dev/null
+    fi
+    
+    # Clean up temporary file
+    rm project-def.json
 done
-
-# Clean up temporary files
-rm buildspec.json
 
 echo "CodeBuild projects created successfully."

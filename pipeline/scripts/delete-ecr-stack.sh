@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script deletes the ECR stack to allow the full pipeline stack to be created
+# This script deletes ECR repositories for each service
 
 # Check if AWS CLI is installed
 if ! command -v aws &> /dev/null; then
@@ -9,20 +9,20 @@ if ! command -v aws &> /dev/null; then
 fi
 
 # Set default values
-ECR_STACK_NAME="letter-image-generator-ecr"
-PIPELINE_REGION="eu-south-2"
+PROJECT_NAME="letter-image-generator"
+REGION="eu-south-2"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
-        --stack-name)
-        ECR_STACK_NAME="$2"
+        --project-name)
+        PROJECT_NAME="$2"
         shift
         shift
         ;;
         --region)
-        PIPELINE_REGION="$2"
+        REGION="$2"
         shift
         shift
         ;;
@@ -33,12 +33,19 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Deleting ECR stack: $ECR_STACK_NAME in region $PIPELINE_REGION"
+echo "Deleting ECR repositories for project: $PROJECT_NAME in region: $REGION"
 
-# Delete the ECR stack
-aws cloudformation delete-stack --stack-name $ECR_STACK_NAME --region $PIPELINE_REGION
+# Delete ECR repositories for each service
+services=("frontend" "orchestrator" "compositor")
 
-echo "Waiting for stack deletion to complete..."
-aws cloudformation wait stack-delete-complete --stack-name $ECR_STACK_NAME --region $PIPELINE_REGION
+for service in "${services[@]}"; do
+    repo_name="${PROJECT_NAME}-${service}"
+    echo "Deleting ECR repository: $repo_name"
+    
+    aws ecr delete-repository \
+        --repository-name "$repo_name" \
+        --force \
+        --region "$REGION" || echo "Repository $repo_name doesn't exist or couldn't be deleted"
+done
 
-echo "ECR stack deletion complete. You can now deploy the full pipeline stack."
+echo "ECR repositories deleted successfully."
