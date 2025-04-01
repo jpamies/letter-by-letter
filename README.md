@@ -20,4 +20,31 @@ This application demonstrates EKS AutoMode capabilities by generating images of 
 
 ## Getting Started
 
-Each component has its own directory with instructions for running locally.
+Each component has its own directory with instructions for running locally:
+
+- **frontend/**: React application for user interface
+- **orchestrator-service/**: Service that coordinates requests
+- **image-compositor-service/**: Service that assembles the final image
+- **letter-services/**: Directory containing services for each letter
+- **number-services/**: Directory containing services for each digit
+- **special-char-service/**: Service for special characters
+
+## Deployment
+
+The application is deployed using AWS services:
+
+- **Container Registry**: Images are stored in Amazon ECR
+- **Kubernetes**: Services run on Amazon EKS with AutoMode
+- **CI/CD**: Automated build and deployment configured in AWS console
+
+## Local Development
+
+To run the services locally:
+
+1. Navigate to the service directory
+2. Follow the README instructions in each component directory
+3. Use Docker Compose for local orchestration
+
+## Contributing
+
+Please see the CONTRIBUTING.md file for guidelines on how to contribute to this project.
