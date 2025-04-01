@@ -25,6 +25,10 @@ fi
 # Project root directory (assuming this script is in k8s/scripts)
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+# Always build for AMD64 architecture for EKS compatibility
+PLATFORM="linux/amd64"
+echo "Building for AMD64 architecture for EKS compatibility"
+
 # Services to build and push
 SERVICES=(
     "frontend"
@@ -49,11 +53,11 @@ for service in "${SERVICES[@]}"; do
         REPO_NAME="letter-image-generator-$service"
     fi
     
-    echo "Building $service..."
+    echo "Building $service for $PLATFORM..."
     cd "$PROJECT_ROOT/$service" || { echo "Error: Directory $PROJECT_ROOT/$service not found"; continue; }
     
-    # Build the image
-    podman build -t "$REPO_NAME:latest" .
+    # Build the image with platform specification
+    podman build --platform=$PLATFORM -t "$REPO_NAME:latest" .
     
     # Tag the image for ECR
     podman tag "$REPO_NAME:latest" "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:latest"
@@ -62,7 +66,7 @@ for service in "${SERVICES[@]}"; do
     echo "Pushing $REPO_NAME to ECR..."
     podman push "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:latest"
     
-    echo "$service built and pushed successfully!"
+    echo "$service built and pushed successfully for $PLATFORM!"
 done
 
 echo "All images have been built and pushed to ECR!"
