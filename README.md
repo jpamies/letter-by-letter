@@ -41,9 +41,22 @@ The application is deployed using AWS services:
 
 To run the services locally:
 
-1. Navigate to the service directory
-2. Follow the README instructions in each component directory
-3. Use Docker Compose for local orchestration
+1. Use the provided Makefile with podman:
+   ```bash
+   # Build and run all services
+   make local
+   
+   # View running services
+   make ps
+   
+   # View logs
+   make logs
+   
+   # Stop all services
+   make down
+   ```
+
+2. Alternatively, navigate to individual service directories and follow their README instructions
 
 ## Contributing
 
