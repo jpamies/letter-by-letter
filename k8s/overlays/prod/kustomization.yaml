@@ -5,7 +5,7 @@ resources:
 - ../../base
 - hpa.yaml
 
-namespace: letter-image-generator-prod
+namespace: letter-image-generator
 
 labels:
 - includeSelectors: true

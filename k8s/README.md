@@ -5,7 +5,7 @@ This directory contains Kubernetes manifests for deploying the Letter-by-Letter 
 ## Directory Structure
 
 - `base/`: Base Kubernetes manifests common to all environments
-  - `namespaces.yaml`: Defines the namespaces for different environments
+  - `namespaces.yaml`: Defines the namespace for the application
   - `*-deployment.yaml`: Deployment configurations for each service
   - `*-service.yaml`: Service configurations for each service
 - `overlays/`: Environment-specific configurations
@@ -34,7 +34,7 @@ export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output tex
 export AWS_REGION=$(aws configure get region)
 ```
 
-2. Create the required namespaces:
+2. Create the required namespace:
 ```bash
 kubectl apply -f k8s/base/namespaces.yaml
 ```
@@ -65,11 +65,13 @@ The production overlay includes configurations optimized for EKS AutoMode:
 - Resource requests and limits for efficient pod scheduling
 - Multiple replicas for high availability
 
-## Local vs. Kubernetes Deployment
+## Environment Strategy
 
-- **Local Development**: Use `make local` for a simple Docker Compose-based setup
-- **Local Kubernetes**: Use `podman kube play` for testing Kubernetes configurations locally
-- **EKS Deployment**: Use `kubectl apply -k` for deploying to Amazon EKS
+Both development and production environments use the same namespace name (`letter-image-generator`) but are deployed to different clusters. Environment-specific configurations are managed through:
+
+- Different image repositories (local for dev, ECR for prod)
+- Different replica counts and scaling policies
+- Environment labels that distinguish resources
 
 ## Adding New Services
 

@@ -1,9 +1,4 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: letter-image-generator-dev
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: letter-image-generator-prod
+  name: letter-image-generator

@@ -108,9 +108,9 @@ create-number-service:
 	cp -r templates/number-service/* number-services/$$number-service/ || echo "No template found, creating empty directory"
 
 # Kubernetes targets
-.PHONY: k8s-local k8s-down k8s-dev k8s-prod k8s-create-namespaces
-k8s-create-namespaces:
-	@echo "Creating Kubernetes namespaces..."
+.PHONY: k8s-local k8s-down k8s-dev k8s-prod k8s-create-namespace
+k8s-create-namespace:
+	@echo "Creating Kubernetes namespace..."
 	kubectl apply -f $(K8S_DEV)/../base/namespaces.yaml
 
 k8s-local:
