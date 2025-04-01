@@ -56,7 +56,16 @@ To run the services locally:
    make down
    ```
 
-2. Alternatively, navigate to individual service directories and follow their README instructions
+2. Alternatively, you can deploy to a local Kubernetes environment using podman:
+   ```bash
+   # Deploy to local Kubernetes
+   make k8s-local
+   
+   # Remove local Kubernetes deployment
+   make k8s-down
+   ```
+
+3. For individual service development, navigate to service directories and follow their README instructions
 
 ## Contributing
 

@@ -6,6 +6,8 @@ PODMAN = podman
 COMPOSE = $(PODMAN)-compose
 COMPOSE_FILE = docker-compose.yml
 SERVICES = frontend orchestrator-service image-compositor-service
+K8S_DEV = k8s/overlays/dev
+K8S_PROD = k8s/overlays/prod
 
 # Default target
 .PHONY: help
@@ -20,6 +22,10 @@ help:
 	@echo "  ps          - Show running containers"
 	@echo "  build-<service> - Build a specific service (e.g., build-frontend)"
 	@echo "  test        - Run tests for all services"
+	@echo "  k8s-local   - Deploy to local Kubernetes using podman"
+	@echo "  k8s-down    - Remove local Kubernetes deployment"
+	@echo "  k8s-dev     - Deploy to development Kubernetes cluster"
+	@echo "  k8s-prod    - Deploy to production Kubernetes cluster"
 
 # Build and run locally
 .PHONY: local
@@ -100,3 +106,21 @@ create-number-service:
 	mkdir -p number-services/$$number-service; \
 	echo "Creating number service for $$number..."; \
 	cp -r templates/number-service/* number-services/$$number-service/ || echo "No template found, creating empty directory"
+
+# Kubernetes targets
+.PHONY: k8s-local k8s-down k8s-dev k8s-prod
+k8s-local:
+	@echo "Deploying to local Kubernetes using podman..."
+	$(PODMAN) kube play --network=podman $(K8S_DEV)
+
+k8s-down:
+	@echo "Removing local Kubernetes deployment..."
+	$(PODMAN) kube down $(K8S_DEV)
+
+k8s-dev:
+	@echo "Deploying to development Kubernetes cluster..."
+	kubectl apply -k $(K8S_DEV)
+
+k8s-prod:
+	@echo "Deploying to production Kubernetes cluster..."
+	kubectl apply -k $(K8S_PROD)
