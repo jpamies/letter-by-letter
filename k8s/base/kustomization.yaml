@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
 - namespaces.yaml
+- service-account.yaml
 - frontend-deployment.yaml
 - frontend-service.yaml
 - orchestrator-deployment.yaml

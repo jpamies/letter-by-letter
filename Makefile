@@ -115,7 +115,7 @@ K8S_PROD := k8s/overlays/prod
 K8S_SCRIPTS := k8s/scripts
 
 # Kubernetes targets
-.PHONY: k8s-local k8s-down k8s-dev k8s-prod k8s-create-namespace k8s-update-images k8s-create-ecr k8s-build-push
+.PHONY: k8s-local k8s-down k8s-dev k8s-prod k8s-create-namespace k8s-update-images k8s-create-ecr k8s-build-push k8s-setup-pod-identity
 
 k8s-create-namespace:
 	@echo "Creating Kubernetes namespace..."
@@ -133,6 +133,10 @@ k8s-build-push:
 	@echo "Building and pushing images to ECR..."
 	cd $(K8S_SCRIPTS) && ./build-and-push-images.sh
 
+k8s-setup-pod-identity:
+	@echo "Setting up EKS Pod Identity for ECR access..."
+	cd $(K8S_SCRIPTS) && ./setup-pod-identity.sh
+
 k8s-local:
 	@echo "Deploying to local Kubernetes using podman..."
 	$(PODMAN) kube play --network=podman $(K8S_DEV)
@@ -146,7 +150,7 @@ k8s-dev:
 	kubectl apply -f $(K8S_BASE)/namespaces.yaml
 	kubectl apply -k $(K8S_DEV)
 
-k8s-prod-prepare: k8s-create-ecr k8s-build-push k8s-update-images
+k8s-prod-prepare: k8s-create-ecr k8s-build-push k8s-update-images k8s-setup-pod-identity
 	@echo "Production deployment preparation complete."
 
 k8s-prod: k8s-prod-prepare

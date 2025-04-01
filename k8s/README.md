@@ -6,6 +6,7 @@ This directory contains Kubernetes manifests for deploying the Letter-by-Letter 
 
 - `base/`: Base Kubernetes manifests common to all environments
   - `namespaces.yaml`: Defines the namespace for the application
+  - `service-account.yaml`: Defines the service account for ECR access
   - `*-deployment.yaml`: Deployment configurations for each service
   - `*-service.yaml`: Service configurations for each service
 - `overlays/`: Environment-specific configurations
@@ -15,6 +16,7 @@ This directory contains Kubernetes manifests for deploying the Letter-by-Letter 
   - `update-images.sh`: Script to update ECR image references with actual AWS account and region
   - `create-ecr-repos.sh`: Script to create required ECR repositories
   - `build-and-push-images.sh`: Script to build and push images to ECR
+  - `setup-pod-identity.sh`: Script to set up EKS Pod Identity for ECR access
 
 ## Deployment Instructions
 
@@ -41,7 +43,7 @@ make k8s-dev
 
 For production deployment, you need to:
 
-1. Create ECR repositories, build and push images, and update image references:
+1. Create ECR repositories, build and push images, update image references, and set up Pod Identity:
 ```bash
 # This will prepare everything for production deployment
 make k8s-prod-prepare
@@ -63,6 +65,9 @@ make k8s-build-push
 
 # Update image references in kustomization files
 make k8s-update-images
+
+# Set up EKS Pod Identity for ECR access
+make k8s-setup-pod-identity
 ```
 
 ### Cleaning Up Deployments
@@ -83,6 +88,7 @@ The production overlay includes configurations optimized for EKS AutoMode:
 - Horizontal Pod Autoscalers (HPAs) for all services
 - Resource requests and limits for efficient pod scheduling
 - Multiple replicas for high availability
+- EKS Pod Identity for secure ECR access
 
 ## Environment Strategy
 
@@ -95,10 +101,10 @@ Both development and production environments use the same namespace name (`lette
 ## Troubleshooting
 
 If you encounter image pull errors:
-1. Ensure you're authenticated with ECR: `aws ecr get-login-password | podman login --username AWS --password-stdin <account-id>.dkr.ecr.<region>.amazonaws.com`
+1. Ensure your EKS Pod Identity is set up correctly: `make k8s-setup-pod-identity`
 2. Verify the ECR repositories exist: `aws ecr describe-repositories`
 3. Check that images have been pushed: `aws ecr list-images --repository-name <repo-name>`
-4. Ensure your Kubernetes cluster has permissions to pull from ECR
+4. Verify the Pod Identity Association: `aws eks list-pod-identity-associations --cluster-name <cluster-name>`
 
 ## Adding New Services
 
@@ -108,3 +114,4 @@ When adding new letter or number services:
 2. Add the new files to the `kustomization.yaml` in the `base/` directory
 3. Update the overlays as needed for environment-specific configurations
 4. Add the new service to the `create-ecr-repos.sh` and `build-and-push-images.sh` scripts
+5. Ensure the deployment uses the `ecr-pull-sa` service account

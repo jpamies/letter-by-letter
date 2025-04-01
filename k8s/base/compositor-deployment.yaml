@@ -14,6 +14,7 @@ spec:
       labels:
         app: compositor
     spec:
+      serviceAccountName: ecr-pull-sa
       containers:
       - name: compositor
         image: letter-image-generator-compositor:latest
