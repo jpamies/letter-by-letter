@@ -5,6 +5,9 @@ This directory contains Kubernetes manifests for deploying the Letter-by-Letter 
 ## Directory Structure
 
 - `base/`: Base Kubernetes manifests common to all environments
+  - `namespaces.yaml`: Defines the namespaces for different environments
+  - `*-deployment.yaml`: Deployment configurations for each service
+  - `*-service.yaml`: Service configurations for each service
 - `overlays/`: Environment-specific configurations
   - `dev/`: Development environment configuration
   - `prod/`: Production environment configuration with EKS AutoMode settings
@@ -31,16 +34,21 @@ export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output tex
 export AWS_REGION=$(aws configure get region)
 ```
 
-2. Apply the Kubernetes manifests:
+2. Create the required namespaces:
 ```bash
-# For development environment
-kubectl apply -k k8s/overlays/dev/
-
-# For production environment
-kubectl apply -k k8s/overlays/prod/
+kubectl apply -f k8s/base/namespaces.yaml
 ```
 
-3. To delete the deployment:
+3. Apply the Kubernetes manifests:
+```bash
+# For development environment
+make k8s-dev
+
+# For production environment
+make k8s-prod
+```
+
+4. To delete the deployment:
 ```bash
 # For development environment
 kubectl delete -k k8s/overlays/dev/

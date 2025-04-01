@@ -108,7 +108,11 @@ create-number-service:
 	cp -r templates/number-service/* number-services/$$number-service/ || echo "No template found, creating empty directory"
 
 # Kubernetes targets
-.PHONY: k8s-local k8s-down k8s-dev k8s-prod
+.PHONY: k8s-local k8s-down k8s-dev k8s-prod k8s-create-namespaces
+k8s-create-namespaces:
+	@echo "Creating Kubernetes namespaces..."
+	kubectl apply -f $(K8S_DEV)/../base/namespaces.yaml
+
 k8s-local:
 	@echo "Deploying to local Kubernetes using podman..."
 	$(PODMAN) kube play --network=podman $(K8S_DEV)
@@ -117,10 +121,10 @@ k8s-down:
 	@echo "Removing local Kubernetes deployment..."
 	$(PODMAN) kube down $(K8S_DEV)
 
-k8s-dev:
+k8s-dev: k8s-create-namespaces
 	@echo "Deploying to development Kubernetes cluster..."
 	kubectl apply -k $(K8S_DEV)
 
-k8s-prod:
+k8s-prod: k8s-create-namespaces
 	@echo "Deploying to production Kubernetes cluster..."
 	kubectl apply -k $(K8S_PROD)
