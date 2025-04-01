@@ -3,7 +3,6 @@ kind: Ingress
 metadata:
   name: letter-image-generator-ingress
   annotations:
-    kubernetes.io/ingress.class: "alb"
     alb.ingress.kubernetes.io/scheme: "internet-facing"
     alb.ingress.kubernetes.io/target-type: "ip"
     alb.ingress.kubernetes.io/healthcheck-path: "/"
@@ -13,6 +12,7 @@ metadata:
     # Enable Route 53 integration
     external-dns.alpha.kubernetes.io/hostname: "l2l.demo.aws.jpamies.com"
 spec:
+  ingressClassName: alb
   rules:
   - host: "l2l.demo.aws.jpamies.com"
     http:
