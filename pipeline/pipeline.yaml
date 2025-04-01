@@ -1,0 +1,405 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CI/CD Pipeline for Letter-by-Letter Image Generator EKS AutoMode Demo'
+
+Parameters:
+  RepositoryName:
+    Type: String
+    Default: letter-image-generator
+    Description: Name of the CodeCommit repository
+  
+  BranchName:
+    Type: String
+    Default: main
+    Description: Branch name for the CodeCommit repository
+  
+  ProjectName:
+    Type: String
+    Default: letter-image-generator
+    Description: Name prefix for the project resources
+
+Resources:
+  # ECR Repositories for each service
+  FrontendRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub ${ProjectName}-frontend
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep only the last 10 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": {
+                  "type": "expire"
+                }
+              }
+            ]
+          }
+
+  OrchestratorRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub ${ProjectName}-orchestrator
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep only the last 10 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": {
+                  "type": "expire"
+                }
+              }
+            ]
+          }
+
+  CompositorRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub ${ProjectName}-compositor
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep only the last 10 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": {
+                  "type": "expire"
+                }
+              }
+            ]
+          }
+
+  # CodeCommit Repository
+  CodeRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      RepositoryDescription: 'Repository for Letter-by-Letter Image Generator EKS AutoMode Demo'
+
+  # CodeBuild Service Role
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonECR-FullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
+      Policies:
+        - PolicyName: CodeBuildAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:PutObject'
+                Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}/*'
+
+  # CodePipeline Service Role
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AWSCodeBuildAdminAccess'
+        - 'arn:aws:iam::aws:policy/AWSCodeStarFullAccess'
+      Policies:
+        - PolicyName: CodePipelineAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:PutObject'
+                  - 's3:GetBucketVersioning'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ArtifactBucket}'
+                  - !Sub 'arn:aws:s3:::${ArtifactBucket}/*'
+              - Effect: Allow
+                Action:
+                  - 'codecommit:GetBranch'
+                  - 'codecommit:GetCommit'
+                  - 'codecommit:UploadArchive'
+                  - 'codecommit:GetUploadArchiveStatus'
+                  - 'codecommit:CancelUploadArchive'
+                Resource: !GetAtt CodeRepository.Arn
+
+  # S3 Bucket for Pipeline Artifacts
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+
+  # CodeBuild Projects for each service
+  FrontendBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${ProjectName}-frontend-build
+      Description: 'Build project for the frontend service'
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: ECR_REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${FrontendRepository}
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo Logging in to Amazon ECR...
+                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPOSITORY_URI
+                - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+                - IMAGE_TAG=${COMMIT_HASH:=latest}
+            build:
+              commands:
+                - echo Building the Docker image...
+                - cd frontend
+                - docker build -t $ECR_REPOSITORY_URI:latest .
+                - docker tag $ECR_REPOSITORY_URI:latest $ECR_REPOSITORY_URI:$IMAGE_TAG
+            post_build:
+              commands:
+                - echo Pushing the Docker image...
+                - docker push $ECR_REPOSITORY_URI:latest
+                - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
+                - echo Writing image definitions file...
+                - echo "{\"ImageURI\":\"$ECR_REPOSITORY_URI:$IMAGE_TAG\"}" > imageDefinition.json
+          artifacts:
+            files:
+              - frontend/imageDefinition.json
+              - appspec.yml
+              - taskdef.json
+
+  OrchestratorBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${ProjectName}-orchestrator-build
+      Description: 'Build project for the orchestrator service'
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: ECR_REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${OrchestratorRepository}
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo Logging in to Amazon ECR...
+                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPOSITORY_URI
+                - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+                - IMAGE_TAG=${COMMIT_HASH:=latest}
+            build:
+              commands:
+                - echo Building the Docker image...
+                - cd orchestrator-service
+                - docker build -t $ECR_REPOSITORY_URI:latest .
+                - docker tag $ECR_REPOSITORY_URI:latest $ECR_REPOSITORY_URI:$IMAGE_TAG
+            post_build:
+              commands:
+                - echo Pushing the Docker image...
+                - docker push $ECR_REPOSITORY_URI:latest
+                - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
+                - echo Writing image definitions file...
+                - echo "{\"ImageURI\":\"$ECR_REPOSITORY_URI:$IMAGE_TAG\"}" > imageDefinition.json
+          artifacts:
+            files:
+              - orchestrator-service/imageDefinition.json
+              - appspec.yml
+              - taskdef.json
+
+  CompositorBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${ProjectName}-compositor-build
+      Description: 'Build project for the image compositor service'
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: ECR_REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${CompositorRepository}
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo Logging in to Amazon ECR...
+                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPOSITORY_URI
+                - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+                - IMAGE_TAG=${COMMIT_HASH:=latest}
+            build:
+              commands:
+                - echo Building the Docker image...
+                - cd image-compositor-service
+                - docker build -t $ECR_REPOSITORY_URI:latest .
+                - docker tag $ECR_REPOSITORY_URI:latest $ECR_REPOSITORY_URI:$IMAGE_TAG
+            post_build:
+              commands:
+                - echo Pushing the Docker image...
+                - docker push $ECR_REPOSITORY_URI:latest
+                - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
+                - echo Writing image definitions file...
+                - echo "{\"ImageURI\":\"$ECR_REPOSITORY_URI:$IMAGE_TAG\"}" > imageDefinition.json
+          artifacts:
+            files:
+              - image-compositor-service/imageDefinition.json
+              - appspec.yml
+              - taskdef.json
+
+  # CodePipeline
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub ${ProjectName}-pipeline
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: '1'
+              Configuration:
+                RepositoryName: !Ref RepositoryName
+                BranchName: !Ref BranchName
+              OutputArtifacts:
+                - Name: SourceCode
+        - Name: Build
+          Actions:
+            - Name: BuildFrontend
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref FrontendBuildProject
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: FrontendBuildOutput
+            - Name: BuildOrchestrator
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref OrchestratorBuildProject
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: OrchestratorBuildOutput
+            - Name: BuildCompositor
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref CompositorBuildProject
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: CompositorBuildOutput
+
+Outputs:
+  CodeCommitRepositoryUrl:
+    Description: URL to the CodeCommit repository
+    Value: !GetAtt CodeRepository.CloneUrlHttp
+  
+  FrontendEcrRepositoryUri:
+    Description: URI for the frontend ECR repository
+    Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${FrontendRepository}
+  
+  OrchestratorEcrRepositoryUri:
+    Description: URI for the orchestrator ECR repository
+    Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${OrchestratorRepository}
+  
+  CompositorEcrRepositoryUri:
+    Description: URI for the image compositor ECR repository
+    Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${CompositorRepository}
+  
+  PipelineUrl:
+    Description: URL to the CodePipeline console
+    Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${ProjectName}-pipeline
