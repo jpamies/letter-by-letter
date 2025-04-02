@@ -1,8 +1,27 @@
 # Letter-by-Letter Image Generator for EKS AutoMode Demo
 
-This application demonstrates EKS AutoMode capabilities by generating images of text using microservices for each letter and number.
+<div align="center">
+  <img src="assets/logo.png" alt="Letter-by-Letter Image Generator Logo" >
+</div>
+
+## Project Overview
+
+The Letter-by-Letter Image Generator is a cloud-native application designed to showcase Amazon EKS AutoMode capabilities through a microservices architecture. This application takes text input and generates stylized images by processing each character through dedicated microservices.
+
+Each letter, number, and special character is handled by its own independent service, demonstrating how EKS AutoMode can efficiently manage and scale numerous microservices based on demand. The application highlights key cloud-native principles including:
+
+- **Scalability**: Services scale independently based on their individual workloads
+- **Resilience**: Failure in one character service doesn't affect the others
+- **Resource Efficiency**: EKS AutoMode optimizes resource allocation automatically
+- **Observability**: Built-in metrics and tracing for performance monitoring
+
+This demo provides a practical example of how to structure, deploy, and manage complex microservice applications on Amazon EKS with AutoMode enabled.
 
 ## Architecture
+
+<div align="center">
+  <img src="assets/architecture.svg" alt="Letter-by-Letter Image Generator Architecture Diagram" width="800">
+</div>
 
 - **Frontend**: React application for user input and displaying results
 - **Orchestrator Service**: Coordinates requests to letter/number services
@@ -66,6 +85,24 @@ To run the services locally:
    ```
 
 3. For individual service development, navigate to service directories and follow their README instructions
+
+## Multi-Architecture Builds
+
+The project supports building container images for both ARM64 and AMD64 architectures:
+
+1. Build and push multi-architecture images to ECR:
+   ```bash
+   # Build and push images for both architectures
+   make ecr-build-push-multi-arch
+   ```
+
+2. Bump the version number when releasing new versions:
+   ```bash
+   # Update the version from 0.1.0 to 0.2.0
+   make version-bump NEW_VERSION=0.2.0
+   ```
+
+The version is stored in the `VERSION` file at the root of the project.
 
 ## Contributing
 
