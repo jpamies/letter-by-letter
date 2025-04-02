@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 node:18-alpine
+FROM --platform=linux/amd64 node:18-alpine as build
 
 WORKDIR /app
 
@@ -8,6 +8,18 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 3000
+# Build the production version of the app
+RUN npm run build
 
-CMD ["npm", "start"]
+# Production environment
+FROM --platform=linux/amd64 nginx:alpine
+
+# Copy built assets from the build stage
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Add nginx configuration to handle React Router
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

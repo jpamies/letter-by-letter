@@ -76,6 +76,7 @@ ecr-build-push-multi-arch:
 	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-frontend:$(VERSION)-arm64
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-frontend:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-frontend:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-frontend:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-frontend:$(VERSION)
+	$(PODMAN) manifest rm $(ECR_REGISTRY)/letter-image-generator-frontend:latest 2>/dev/null || true
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-frontend:latest $(ECR_REGISTRY)/letter-image-generator-frontend:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-frontend:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-frontend:latest
 	
@@ -87,6 +88,7 @@ ecr-build-push-multi-arch:
 	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-orchestrator:$(VERSION)-arm64
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-orchestrator:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-orchestrator:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-orchestrator:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-orchestrator:$(VERSION)
+	$(PODMAN) manifest rm $(ECR_REGISTRY)/letter-image-generator-orchestrator:latest 2>/dev/null || true
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-orchestrator:latest $(ECR_REGISTRY)/letter-image-generator-orchestrator:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-orchestrator:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-orchestrator:latest
 	
@@ -98,6 +100,7 @@ ecr-build-push-multi-arch:
 	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-compositor:$(VERSION)-arm64
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-compositor:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-compositor:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-compositor:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-compositor:$(VERSION)
+	$(PODMAN) manifest rm $(ECR_REGISTRY)/letter-image-generator-compositor:latest 2>/dev/null || true
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-compositor:latest $(ECR_REGISTRY)/letter-image-generator-compositor:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-compositor:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-compositor:latest
 	
@@ -109,6 +112,7 @@ ecr-build-push-multi-arch:
 	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-arm64
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)
+	$(PODMAN) manifest rm $(ECR_REGISTRY)/letter-image-generator-letter-service:latest 2>/dev/null || true
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-letter-service:latest $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-letter-service:latest
 	
@@ -120,6 +124,7 @@ ecr-build-push-multi-arch:
 	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-arm64
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)
+	$(PODMAN) manifest rm $(ECR_REGISTRY)/letter-image-generator-number-service:latest 2>/dev/null || true
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-number-service:latest $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-number-service:latest
 	
@@ -131,6 +136,7 @@ ecr-build-push-multi-arch:
 	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-arm64
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)
+	$(PODMAN) manifest rm $(ECR_REGISTRY)/letter-image-generator-special-char-service:latest 2>/dev/null || true
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-special-char-service:latest $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-special-char-service:latest
 	
@@ -150,8 +156,7 @@ version-patch-bump:
 	echo "$$NEW_VERSION" > VERSION; \
 	echo "Version updated from $$CURRENT_VERSION to $$NEW_VERSION"; \
 	git add VERSION; \
-	git commit -m "Bump version to $$NEW_VERSION for deployment"; \
-	@VERSION = $NEW_VERSION
+	git commit -m "Bump version to $$NEW_VERSION for deployment" || true
 
 # Clean up targets
 .PHONY: clean clean-images

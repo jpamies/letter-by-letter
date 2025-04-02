@@ -13,7 +13,10 @@ function App() {
     setLoading(true);
     
     try {
-      const response = await axios.post('http://localhost:3001/generate', { text: inputText });
+      // Use environment variable for API URL or fallback to relative path
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      console.log('Using API URL:', apiUrl); // Log the API URL being used
+      const response = await axios.post(`${apiUrl}/generate`, { text: inputText });
       setImageUrl(response.data.imageUrl);
       setMetrics(response.data.metrics);
     } catch (error) {
