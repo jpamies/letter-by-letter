@@ -167,5 +167,6 @@ clean: down
 
 clean-images:
 	@echo "Removing all local images..."
+	$(PODMAN) container rm -f $$($(PODMAN) container ls -aq) 2>/dev/null || true
 	$(PODMAN) images -a | grep -v "REPOSITORY" | awk '{print $$3}' | xargs -r $(PODMAN) rmi -f
 	@echo "All local images have been removed."
