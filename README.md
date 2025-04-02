@@ -32,8 +32,8 @@ This demo provides a practical example of how to structure, deploy, and manage c
 
 ## Development Stages
 
-1. **First Iteration**: Frontend, Orchestrator, and Image Compositor with mocked letter services
-2. **Second Iteration**: Implement actual letter, number, and special character services
+1. ✅ **First Iteration**: Frontend, Orchestrator, and Image Compositor with mocked letter services
+2. 🔄 **Second Iteration**: Implement actual letter, number, and special character services
 3. **Third Iteration**: Add metrics, tracing, and visualization components
 4. **Final Stage**: Deploy to EKS with AutoMode configuration
 

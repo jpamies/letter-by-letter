@@ -1,0 +1,22 @@
+{
+  "name": "letter-service-template",
+  "version": "0.1.0",
+  "description": "Base template for letter image generation services",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "canvas": "^2.11.2",
+    "express": "^4.18.2",
+    "pino": "^8.15.0",
+    "pino-http": "^8.5.0"
+  },
+  "devDependencies": {
+    "jest": "^29.6.4",
+    "nodemon": "^3.0.1",
+    "supertest": "^6.3.3"
+  }
+}
