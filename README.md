@@ -96,6 +96,11 @@ The project supports building container images for both ARM64 and AMD64 architec
    make ecr-build-push-multi-arch
    ```
 
+   This process:
+   - Builds each service for both amd64 and arm64 architectures
+   - Pushes architecture-specific tags to ECR
+   - Creates and pushes manifest lists that work across architectures
+
 2. Bump the version number when releasing new versions:
    ```bash
    # Update the version from 0.1.0 to 0.2.0

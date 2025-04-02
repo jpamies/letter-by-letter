@@ -61,43 +61,90 @@ ecr-build-push:
 # Multi-architecture build and push
 ecr-build-push-multi-arch:
 	@echo "Building and pushing multi-architecture images to ECR (version: $(VERSION))..."
-	$(PODMAN) buildx create --name multi-arch-builder --use || true
-	@echo "Building frontend..."
-	cd frontend && $(PODMAN) buildx build --platform $(PLATFORMS) \
-		-t $(ECR_REGISTRY)/frontend:$(VERSION) \
-		-t $(ECR_REGISTRY)/frontend:latest --push .
+	@echo "Logging in to ECR..."
+	aws ecr get-login-password --region $(AWS_REGION) | $(PODMAN) login --username AWS --password-stdin $(ECR_REGISTRY)
+	
+	@echo "Building and pushing multi-architecture images..."
+	
+	# Frontend service
+	@echo "Building frontend for amd64..."
+	cd frontend && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/frontend:$(VERSION)-amd64 .
+	@echo "Building frontend for arm64..."
+	cd frontend && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/frontend:$(VERSION)-arm64 .
+	$(PODMAN) push $(ECR_REGISTRY)/frontend:$(VERSION)-amd64
+	$(PODMAN) push $(ECR_REGISTRY)/frontend:$(VERSION)-arm64
+	$(PODMAN) manifest create $(ECR_REGISTRY)/frontend:$(VERSION) $(ECR_REGISTRY)/frontend:$(VERSION)-amd64 $(ECR_REGISTRY)/frontend:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/frontend:$(VERSION)
+	$(PODMAN) manifest create $(ECR_REGISTRY)/frontend:latest $(ECR_REGISTRY)/frontend:$(VERSION)-amd64 $(ECR_REGISTRY)/frontend:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/frontend:latest
+	
+	# Orchestrator service
 	@echo "Building orchestrator service..."
-	cd orchestrator-service && $(PODMAN) buildx build --platform $(PLATFORMS) \
-		-t $(ECR_REGISTRY)/orchestrator:$(VERSION) \
-		-t $(ECR_REGISTRY)/orchestrator:latest --push .
+	cd orchestrator-service && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/orchestrator:$(VERSION)-amd64 .
+	cd orchestrator-service && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/orchestrator:$(VERSION)-arm64 .
+	$(PODMAN) push $(ECR_REGISTRY)/orchestrator:$(VERSION)-amd64
+	$(PODMAN) push $(ECR_REGISTRY)/orchestrator:$(VERSION)-arm64
+	$(PODMAN) manifest create $(ECR_REGISTRY)/orchestrator:$(VERSION) $(ECR_REGISTRY)/orchestrator:$(VERSION)-amd64 $(ECR_REGISTRY)/orchestrator:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/orchestrator:$(VERSION)
+	$(PODMAN) manifest create $(ECR_REGISTRY)/orchestrator:latest $(ECR_REGISTRY)/orchestrator:$(VERSION)-amd64 $(ECR_REGISTRY)/orchestrator:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/orchestrator:latest
+	
+	# Image compositor service
 	@echo "Building image compositor service..."
-	cd image-compositor-service && $(PODMAN) buildx build --platform $(PLATFORMS) \
-		-t $(ECR_REGISTRY)/compositor:$(VERSION) \
-		-t $(ECR_REGISTRY)/compositor:latest --push .
+	cd image-compositor-service && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/compositor:$(VERSION)-amd64 .
+	cd image-compositor-service && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/compositor:$(VERSION)-arm64 .
+	$(PODMAN) push $(ECR_REGISTRY)/compositor:$(VERSION)-amd64
+	$(PODMAN) push $(ECR_REGISTRY)/compositor:$(VERSION)-arm64
+	$(PODMAN) manifest create $(ECR_REGISTRY)/compositor:$(VERSION) $(ECR_REGISTRY)/compositor:$(VERSION)-amd64 $(ECR_REGISTRY)/compositor:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/compositor:$(VERSION)
+	$(PODMAN) manifest create $(ECR_REGISTRY)/compositor:latest $(ECR_REGISTRY)/compositor:$(VERSION)-amd64 $(ECR_REGISTRY)/compositor:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/compositor:latest
+	
+	# Letter services
 	@echo "Building letter services..."
 	for service in letter-services/*; do \
 		if [ -d "$$service" ]; then \
 			service_name=$$(basename $$service); \
 			echo "Building $$service_name..."; \
-			cd $$service && $(PODMAN) buildx build --platform $(PLATFORMS) \
-				-t $(ECR_REGISTRY)/$$service_name:$(VERSION) \
-				-t $(ECR_REGISTRY)/$$service_name:latest --push . && cd ../..; \
+			cd $$service && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/$$service_name:$(VERSION)-amd64 . && cd ../..; \
+			cd $$service && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/$$service_name:$(VERSION)-arm64 . && cd ../..; \
+			$(PODMAN) push $(ECR_REGISTRY)/$$service_name:$(VERSION)-amd64; \
+			$(PODMAN) push $(ECR_REGISTRY)/$$service_name:$(VERSION)-arm64; \
+			$(PODMAN) manifest create $(ECR_REGISTRY)/$$service_name:$(VERSION) $(ECR_REGISTRY)/$$service_name:$(VERSION)-amd64 $(ECR_REGISTRY)/$$service_name:$(VERSION)-arm64; \
+			$(PODMAN) manifest push $(ECR_REGISTRY)/$$service_name:$(VERSION); \
+			$(PODMAN) manifest create $(ECR_REGISTRY)/$$service_name:latest $(ECR_REGISTRY)/$$service_name:$(VERSION)-amd64 $(ECR_REGISTRY)/$$service_name:$(VERSION)-arm64; \
+			$(PODMAN) manifest push $(ECR_REGISTRY)/$$service_name:latest; \
 		fi; \
 	done
+	
+	# Number services
 	@echo "Building number services..."
 	for service in number-services/*; do \
 		if [ -d "$$service" ]; then \
 			service_name=$$(basename $$service); \
 			echo "Building $$service_name..."; \
-			cd $$service && $(PODMAN) buildx build --platform $(PLATFORMS) \
-				-t $(ECR_REGISTRY)/$$service_name:$(VERSION) \
-				-t $(ECR_REGISTRY)/$$service_name:latest --push . && cd ../..; \
+			cd $$service && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/$$service_name:$(VERSION)-amd64 . && cd ../..; \
+			cd $$service && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/$$service_name:$(VERSION)-arm64 . && cd ../..; \
+			$(PODMAN) push $(ECR_REGISTRY)/$$service_name:$(VERSION)-amd64; \
+			$(PODMAN) push $(ECR_REGISTRY)/$$service_name:$(VERSION)-arm64; \
+			$(PODMAN) manifest create $(ECR_REGISTRY)/$$service_name:$(VERSION) $(ECR_REGISTRY)/$$service_name:$(VERSION)-amd64 $(ECR_REGISTRY)/$$service_name:$(VERSION)-arm64; \
+			$(PODMAN) manifest push $(ECR_REGISTRY)/$$service_name:$(VERSION); \
+			$(PODMAN) manifest create $(ECR_REGISTRY)/$$service_name:latest $(ECR_REGISTRY)/$$service_name:$(VERSION)-amd64 $(ECR_REGISTRY)/$$service_name:$(VERSION)-arm64; \
+			$(PODMAN) manifest push $(ECR_REGISTRY)/$$service_name:latest; \
 		fi; \
 	done
+	
+	# Special character service
 	@echo "Building special character service..."
-	cd special-char-service && $(PODMAN) buildx build --platform $(PLATFORMS) \
-		-t $(ECR_REGISTRY)/special-char:$(VERSION) \
-		-t $(ECR_REGISTRY)/special-char:latest --push .
+	cd special-char-service && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/special-char:$(VERSION)-amd64 .
+	cd special-char-service && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/special-char:$(VERSION)-arm64 .
+	$(PODMAN) push $(ECR_REGISTRY)/special-char:$(VERSION)-amd64
+	$(PODMAN) push $(ECR_REGISTRY)/special-char:$(VERSION)-arm64
+	$(PODMAN) manifest create $(ECR_REGISTRY)/special-char:$(VERSION) $(ECR_REGISTRY)/special-char:$(VERSION)-amd64 $(ECR_REGISTRY)/special-char:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/special-char:$(VERSION)
+	$(PODMAN) manifest create $(ECR_REGISTRY)/special-char:latest $(ECR_REGISTRY)/special-char:$(VERSION)-amd64 $(ECR_REGISTRY)/special-char:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/special-char:latest
+	
 	@echo "Multi-architecture build and push complete for version $(VERSION)"
 
 # Version management
