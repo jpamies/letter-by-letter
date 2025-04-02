@@ -157,3 +157,15 @@ version-bump:
 	@echo "$(NEW_VERSION)" > VERSION
 	@echo "Version updated to $(NEW_VERSION)"
 	@echo "Don't forget to commit the change: git commit -am 'Bump version to $(NEW_VERSION)'"
+
+# Clean up targets
+.PHONY: clean clean-images
+
+clean: down
+	@echo "Cleaning up resources..."
+	$(PODMAN) system prune -f
+
+clean-images:
+	@echo "Removing all local images..."
+	$(PODMAN) images -a | grep -v "REPOSITORY" | awk '{print $$3}' | xargs -r $(PODMAN) rmi -f
+	@echo "All local images have been removed."
