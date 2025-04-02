@@ -4,15 +4,18 @@ metadata:
   name: orchestrator
   labels:
     app: orchestrator
+    app.kubernetes.io/part-of: letter-image-generator
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: orchestrator
+      app.kubernetes.io/part-of: letter-image-generator
   template:
     metadata:
       labels:
         app: orchestrator
+        app.kubernetes.io/part-of: letter-image-generator
     spec:
       serviceAccountName: ecr-pull-sa
       containers:
