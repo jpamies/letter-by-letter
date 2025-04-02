@@ -158,6 +158,19 @@ version-bump:
 	@echo "Version updated to $(NEW_VERSION)"
 	@echo "Don't forget to commit the change: git commit -am 'Bump version to $(NEW_VERSION)'"
 
+# Deployment targets
+.PHONY: deploy deploy-eks
+
+deploy: ecr-build-push-multi-arch k8s-deploy k8s-restart
+	@echo "Deployment complete. Application is now being deployed to EKS."
+	@echo "To check the status, run: kubectl get pods -n letter-image-generator"
+	@echo "To get the application URL, run: kubectl get ingress -n letter-image-generator"
+
+deploy-eks: ecr-build-push-multi-arch k8s-setup-pod-identity k8s-deploy k8s-restart
+	@echo "Full EKS deployment complete."
+	@echo "To check the status, run: kubectl get pods -n letter-image-generator"
+	@echo "To get the application URL, run: kubectl get ingress -n letter-image-generator"
+
 # Clean up targets
 .PHONY: clean clean-images
 
