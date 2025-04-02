@@ -24,9 +24,15 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
-      - COMPOSITOR_URL=http://compositor:3002
+      - LETTER_SERVICE_BASE_URL=http://letter-service:3003
+      - NUMBER_SERVICE_BASE_URL=http://number-service:3004
+      - SPECIAL_CHAR_SERVICE_URL=http://special-char-service:3005
+      - IMAGE_COMPOSITOR_SERVICE_URL=http://compositor:3002
     depends_on:
       - compositor
+      - letter-service
+      - number-service
+      - special-char-service
 
   compositor:
     build:
@@ -46,9 +52,9 @@ services:
         - PLATFORM=linux/arm64/v8
     platform: linux/arm64/v8
     ports:
-      - "3003:3003"
+      - "3003:3000"
     environment:
-      - PORT=3003
+      - PORT=3000
       
   number-service:
     build:
@@ -57,9 +63,9 @@ services:
         - PLATFORM=linux/arm64/v8
     platform: linux/arm64/v8
     ports:
-      - "3004:3004"
+      - "3004:3000"
     environment:
-      - PORT=3004
+      - PORT=3000
       
   special-char-service:
     build:
@@ -68,6 +74,6 @@ services:
         - PLATFORM=linux/arm64/v8
     platform: linux/arm64/v8
     ports:
-      - "3005:3005"
+      - "3005:3000"
     environment:
-      - PORT=3005
+      - PORT=3000
