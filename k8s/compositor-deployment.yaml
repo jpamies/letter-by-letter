@@ -1,31 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: orchestrator
+  name: compositor
   labels:
-    app: orchestrator
+    app: compositor
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: orchestrator
+      app: compositor
   template:
     metadata:
       labels:
-        app: orchestrator
+        app: compositor
     spec:
       serviceAccountName: ecr-pull-sa
       containers:
-      - name: orchestrator
-        image: letter-image-generator-orchestrator:latest
+      - name: compositor
+        image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-compositor:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 3001
+        - containerPort: 3002
         env:
         - name: PORT
-          value: "3001"
-        - name: COMPOSITOR_URL
-          value: "http://compositor:3002"
+          value: "3002"
         resources:
           requests:
             memory: "128Mi"
@@ -36,12 +34,12 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 3001
+            port: 3002
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 3001
+            port: 3002
           initialDelaySeconds: 5
           periodSeconds: 5
