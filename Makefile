@@ -45,6 +45,9 @@ k8s-restart:
 	kubectl rollout restart deployment/frontend -n letter-image-generator
 	kubectl rollout restart deployment/orchestrator -n letter-image-generator
 	kubectl rollout restart deployment/compositor -n letter-image-generator
+	kubectl rollout restart deployment/letter-service -n letter-image-generator
+	kubectl rollout restart deployment/number-service -n letter-image-generator
+	kubectl rollout restart deployment/special-char-service -n letter-image-generator
 	@echo "Deployments restarted. Use 'kubectl get pods -n letter-image-generator' to monitor the rollout."
 
 k8s-setup-pod-identity:
@@ -100,50 +103,38 @@ ecr-build-push-multi-arch:
 	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-compositor:latest $(ECR_REGISTRY)/letter-image-generator-compositor:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-compositor:$(VERSION)-arm64
 	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-compositor:latest
 	
-	# Letter services
-	@echo "Building letter services..."
-	for service in letter-services/*; do \
-		if [ -d "$$service" ]; then \
-			service_name=$$(basename $$service); \
-			echo "Building $$service_name..."; \
-			cd $$service && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-amd64 . && cd ../..; \
-			cd $$service && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-arm64 . && cd ../..; \
-			$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-amd64; \
-			$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-arm64; \
-			$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-arm64; \
-			$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION); \
-			$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-$$service_name:latest $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-arm64; \
-			$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-$$service_name:latest; \
-		fi; \
-	done
+	# Generic letter service
+	@echo "Building letter service..."
+	cd letter-service && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-amd64 .
+	cd letter-service && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-arm64 .
+	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-amd64
+	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-arm64
+	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)
+	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-letter-service:latest $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-letter-service:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-letter-service:latest
 	
-	# Number services
-	@echo "Building number services..."
-	for service in number-services/*; do \
-		if [ -d "$$service" ]; then \
-			service_name=$$(basename $$service); \
-			echo "Building $$service_name..."; \
-			cd $$service && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-amd64 . && cd ../..; \
-			cd $$service && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-arm64 . && cd ../..; \
-			$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-amd64; \
-			$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-arm64; \
-			$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-arm64; \
-			$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION); \
-			$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-$$service_name:latest $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-$$service_name:$(VERSION)-arm64; \
-			$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-$$service_name:latest; \
-		fi; \
-	done
+	# Generic number service
+	@echo "Building number service..."
+	cd number-service && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-amd64 .
+	cd number-service && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-arm64 .
+	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-amd64
+	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-arm64
+	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)
+	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-number-service:latest $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-number-service:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-number-service:latest
 	
 	# Special character service
 	@echo "Building special character service..."
-	cd special-char-service && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/letter-image-generator-special-char:$(VERSION)-amd64 .
-	cd special-char-service && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/letter-image-generator-special-char:$(VERSION)-arm64 .
-	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-special-char:$(VERSION)-amd64
-	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-special-char:$(VERSION)-arm64
-	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-special-char:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-special-char:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-special-char:$(VERSION)-arm64
-	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-special-char:$(VERSION)
-	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-special-char:latest $(ECR_REGISTRY)/letter-image-generator-special-char:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-special-char:$(VERSION)-arm64
-	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-special-char:latest
+	cd special-char-service && $(PODMAN) build --arch=amd64 -t $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-amd64 .
+	cd special-char-service && $(PODMAN) build --arch=arm64 -t $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-arm64 .
+	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-amd64
+	$(PODMAN) push $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-arm64
+	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION) $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)
+	$(PODMAN) manifest create $(ECR_REGISTRY)/letter-image-generator-special-char-service:latest $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-amd64 $(ECR_REGISTRY)/letter-image-generator-special-char-service:$(VERSION)-arm64
+	$(PODMAN) manifest push $(ECR_REGISTRY)/letter-image-generator-special-char-service:latest
 	
 	@echo "Multi-architecture build and push complete for version $(VERSION)"
 
