@@ -1,0 +1,17 @@
+{
+  "name": "number-service",
+  "version": "1.0.0",
+  "description": "Generic service for generating number images",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "canvas": "^2.11.2",
+    "cors": "^2.8.5",
+    "pino": "^8.15.0",
+    "pino-http": "^8.5.0"
+  }
+}

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: number-service
+  namespace: letter-image-generator
+spec:
+  selector:
+    app: number-service
+  ports:
+  - port: 80
+    targetPort: 3000
+  type: ClusterIP

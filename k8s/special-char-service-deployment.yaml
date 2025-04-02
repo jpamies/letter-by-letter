@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: special-char-service
+  namespace: letter-image-generator
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: special-char-service
+  template:
+    metadata:
+      labels:
+        app: special-char-service
+    spec:
+      containers:
+      - name: special-char-service
+        image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-special-char-service:0.2.2
+        ports:
+        - containerPort: 3000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      serviceAccountName: ecr-pull-sa
