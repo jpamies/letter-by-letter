@@ -7,25 +7,25 @@ VERSION := $(shell cat VERSION)
 PLATFORMS := linux/amd64,linux/arm64
 
 # Local development targets
-.PHONY: local build ps logs down
+.PHONY: local local-build local-ps local-logs local-down
 
-build:
+local-build:
 	@echo "Building all services with podman..."
 	$(PODMAN) compose -f podman-compose.yml build
 
-local: build
+local: local-build
 	@echo "Starting all services with podman..."
 	$(PODMAN) compose -f podman-compose.yml up -d
 
-ps:
+local-ps:
 	@echo "Listing running services..."
 	$(PODMAN) compose -f podman-compose.yml ps
 
-logs:
+local-logs:
 	@echo "Showing logs from all services..."
 	$(PODMAN) compose -f podman-compose.yml logs
 
-down:
+local-down:
 	@echo "Stopping all services..."
 	$(PODMAN) compose -f podman-compose.yml down
 
@@ -54,13 +54,11 @@ k8s-setup-pod-identity:
 	@echo "Setting up EKS Pod Identity for ECR access..."
 	cd k8s/scripts && ./setup-pod-identity.sh
 
-# Build and push images to ECR
-.PHONY: ecr-build-push ecr-build-push-multi-arch version-bump
+# Build targets
+.PHONY: build ecr-build-push-multi-arch
 
-ecr-build-push:
-	@echo "Building and pushing images to ECR..."
-	cd k8s/scripts && ./build-and-push-images.sh
-
+build: version-patch-bump ecr-build-push-multi-arch
+k8s-deploy:
 # Multi-architecture build and push
 ecr-build-push-multi-arch:
 	@echo "Building and pushing multi-architecture images to ECR (version: $(VERSION))..."
@@ -138,29 +136,22 @@ ecr-build-push-multi-arch:
 	
 	@echo "Multi-architecture build and push complete for version $(VERSION)"
 
-# Version management
-version-bump:
-	@if [ -z "$(NEW_VERSION)" ]; then \
-		echo "Error: NEW_VERSION is required. Use 'make version-bump NEW_VERSION=x.y.z'"; \
-		exit 1; \
-	fi
-	@echo "Bumping version from $(VERSION) to $(NEW_VERSION)"
-	@echo "$(NEW_VERSION)" > VERSION
-	@echo "Version updated to $(NEW_VERSION)"
-	@echo "Don't forget to commit the change: git commit -am 'Bump version to $(NEW_VERSION)'"
+# Auto version increment
+.PHONY: version-patch-bump
 
-# Deployment targets
-.PHONY: deploy deploy-eks
-
-deploy: ecr-build-push-multi-arch k8s-deploy k8s-restart
-	@echo "Deployment complete. Application is now being deployed to EKS."
-	@echo "To check the status, run: kubectl get pods -n letter-image-generator"
-	@echo "To get the application URL, run: kubectl get ingress -n letter-image-generator"
-
-deploy-eks: ecr-build-push-multi-arch k8s-setup-pod-identity k8s-deploy k8s-restart
-	@echo "Full EKS deployment complete."
-	@echo "To check the status, run: kubectl get pods -n letter-image-generator"
-	@echo "To get the application URL, run: kubectl get ingress -n letter-image-generator"
+version-patch-bump:
+	@echo "Incrementing patch version..."
+	@CURRENT_VERSION=$$(cat VERSION); \
+	MAJOR=$$(echo $$CURRENT_VERSION | cut -d. -f1); \
+	MINOR=$$(echo $$CURRENT_VERSION | cut -d. -f2); \
+	PATCH=$$(echo $$CURRENT_VERSION | cut -d. -f3); \
+	NEW_PATCH=$$((PATCH + 1)); \
+	NEW_VERSION="$$MAJOR.$$MINOR.$$NEW_PATCH"; \
+	echo "$$NEW_VERSION" > VERSION; \
+	echo "Version updated from $$CURRENT_VERSION to $$NEW_VERSION"; \
+	git add VERSION; \
+	git commit -m "Bump version to $$NEW_VERSION for deployment"; \
+	@VERSION = $NEW_VERSION
 
 # Clean up targets
 .PHONY: clean clean-images
