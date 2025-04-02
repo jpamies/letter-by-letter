@@ -18,6 +18,8 @@ spec:
         app.kubernetes.io/part-of: letter-image-generator
     spec:
       serviceAccountName: ecr-pull-sa
+      nodeSelector:
+        kubernetes.io/arch: arm64
       containers:
       - name: frontend
         image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-frontend:latest

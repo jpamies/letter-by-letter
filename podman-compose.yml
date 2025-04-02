@@ -4,6 +4,9 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        - PLATFORM=linux/arm64/v8
+    platform: linux/arm64/v8
     ports:
       - "3000:3000"
     environment:
@@ -14,6 +17,9 @@ services:
   orchestrator:
     build:
       context: ./orchestrator-service
+      args:
+        - PLATFORM=linux/arm64/v8
+    platform: linux/arm64/v8
     ports:
       - "3001:3001"
     environment:
@@ -25,7 +31,43 @@ services:
   compositor:
     build:
       context: ./image-compositor-service
+      args:
+        - PLATFORM=linux/arm64/v8
+    platform: linux/arm64/v8
     ports:
       - "3002:3002"
     environment:
       - PORT=3002
+      
+  letter-service:
+    build:
+      context: ./letter-service
+      args:
+        - PLATFORM=linux/arm64/v8
+    platform: linux/arm64/v8
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      
+  number-service:
+    build:
+      context: ./number-service
+      args:
+        - PLATFORM=linux/arm64/v8
+    platform: linux/arm64/v8
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      
+  special-char-service:
+    build:
+      context: ./special-char-service
+      args:
+        - PLATFORM=linux/arm64/v8
+    platform: linux/arm64/v8
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005

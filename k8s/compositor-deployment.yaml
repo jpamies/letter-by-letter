@@ -18,6 +18,8 @@ spec:
         app.kubernetes.io/part-of: letter-image-generator
     spec:
       serviceAccountName: ecr-pull-sa
+      nodeSelector:
+        kubernetes.io/arch: arm64
       containers:
       - name: compositor
         image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-compositor:latest
@@ -29,10 +31,10 @@ spec:
           value: "3002"
         resources:
           requests:
-            memory: "128Mi"
+            memory: "256Mi"
             cpu: "100m"
           limits:
-            memory: "256Mi"
+            memory: "512Mi"
             cpu: "200m"
         livenessProbe:
           httpGet:

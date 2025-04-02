@@ -1,117 +1,103 @@
 # Kubernetes Deployment for Letter-by-Letter Image Generator
 
-This directory contains Kubernetes manifests for deploying the Letter-by-Letter Image Generator application to Kubernetes clusters, including Amazon EKS with AutoMode.
+This directory contains Kubernetes manifests for deploying the Letter-by-Letter Image Generator application to Amazon EKS with AutoMode.
 
-## Directory Structure
+## Deployment Structure
 
-- `base/`: Base Kubernetes manifests common to all environments
-  - `namespaces.yaml`: Defines the namespace for the application
-  - `service-account.yaml`: Defines the service account for ECR access
-  - `*-deployment.yaml`: Deployment configurations for each service
-  - `*-service.yaml`: Service configurations for each service
-- `overlays/`: Environment-specific configurations
-  - `dev/`: Development environment configuration
-  - `prod/`: Production environment configuration with EKS AutoMode settings
-- `scripts/`: Helper scripts for deployment
-  - `update-images.sh`: Script to update ECR image references with actual AWS account and region
-  - `create-ecr-repos.sh`: Script to create required ECR repositories
-  - `build-and-push-images.sh`: Script to build and push images to ECR
-  - `setup-pod-identity.sh`: Script to set up EKS Pod Identity for ECR access
+The application is deployed using Kustomize, which allows for version-specific deployments:
+
+- `kustomization.yaml`: Main configuration file that references all resources and handles image versioning
+- Individual resource files for deployments, services, HPAs, etc.
 
 ## Deployment Instructions
 
-### Local Development with Podman
+### Prerequisites
 
-For local development with Podman Kubernetes, you can use:
+1. An Amazon EKS cluster with AutoMode enabled
+2. `kubectl` configured to access your EKS cluster
+3. ECR repositories for all services
+4. AWS CLI configured with appropriate permissions
+
+### Deploying the Application
+
+To deploy the application with a specific version:
 
 ```bash
-# Create a local Kubernetes cluster with Podman
-make k8s-local
+# From the project root directory
+make k8s-deploy
+```
 
-# To delete the local deployment
+This will:
+1. Use Kustomize to generate the complete manifest
+2. Replace the `latest` tag with the current version from the VERSION file
+3. Apply the manifest to your Kubernetes cluster
+
+### Updating the Application
+
+After building new versions of the services:
+
+```bash
+# Build new versions and push to ECR
+make build
+
+# Update the Kubernetes deployment with the new version
+make k8s-update-version
+```
+
+Alternatively, use the combined command:
+
+```bash
+make build-deploy
+```
+
+### Removing the Application
+
+To remove the entire application from your cluster:
+
+```bash
 make k8s-down
 ```
 
-### Deploying to EKS Development Environment
+## Monitoring
+
+After deployment, you can monitor the application:
 
 ```bash
-# Deploy to development environment
-make k8s-dev
+# Check pod status
+kubectl get pods -n letter-image-generator
+
+# Check services
+kubectl get svc -n letter-image-generator
+
+# Check horizontal pod autoscalers
+kubectl get hpa -n letter-image-generator
 ```
 
-### Deploying to EKS Production Environment
+## EKS AutoMode Features
 
-For production deployment, you need to:
+This deployment takes advantage of EKS AutoMode features:
 
-1. Create ECR repositories, build and push images, update image references, and set up Pod Identity:
-```bash
-# This will prepare everything for production deployment
-make k8s-prod-prepare
-```
-
-2. Deploy to the production environment:
-```bash
-# This will deploy to production (includes preparation steps)
-make k8s-prod
-```
-
-You can also run individual preparation steps:
-```bash
-# Create ECR repositories
-make k8s-create-ecr
-
-# Build and push images to ECR
-make k8s-build-push
-
-# Update image references in kustomization files
-make k8s-update-images
-
-# Set up EKS Pod Identity for ECR access
-make k8s-setup-pod-identity
-```
-
-### Cleaning Up Deployments
-
-To delete the deployment:
-```bash
-# For development environment
-kubectl delete -k k8s/overlays/dev/
-
-# For production environment
-kubectl delete -k k8s/overlays/prod/
-```
-
-## EKS AutoMode Configuration
-
-The production overlay includes configurations optimized for EKS AutoMode:
-
-- Horizontal Pod Autoscalers (HPAs) for all services
-- Resource requests and limits for efficient pod scheduling
-- Multiple replicas for high availability
-- EKS Pod Identity for secure ECR access
-
-## Environment Strategy
-
-Both development and production environments use the same namespace name (`letter-image-generator`) but are deployed to different clusters. Environment-specific configurations are managed through:
-
-- Different image repositories (local for dev, ECR for prod)
-- Different replica counts and scaling policies
-- Environment labels that distinguish resources
+- **Automatic Scaling**: HPAs are configured for all services
+- **Resource Optimization**: Appropriate resource requests and limits are set
+- **Pod Density**: Services are distributed efficiently across the cluster
+- **Cost Efficiency**: Idle services scale to zero when not in use
 
 ## Troubleshooting
 
-If you encounter image pull errors:
-1. Ensure your EKS Pod Identity is set up correctly: `make k8s-setup-pod-identity`
-2. Verify the ECR repositories exist: `aws ecr describe-repositories`
-3. Check that images have been pushed: `aws ecr list-images --repository-name <repo-name>`
-4. Verify the Pod Identity Association: `aws eks list-pod-identity-associations --cluster-name <cluster-name>`
+If you encounter issues:
 
-## Adding New Services
+1. Check pod status and logs:
+   ```bash
+   kubectl get pods -n letter-image-generator
+   kubectl logs -f <pod-name> -n letter-image-generator
+   ```
 
-When adding new letter or number services:
+2. Verify service connectivity:
+   ```bash
+   kubectl exec -it <pod-name> -n letter-image-generator -- curl <service-name>:3000/health
+   ```
 
-1. Create a new deployment and service manifest in the `base/` directory
-2. Add the new files to the `kustomization.yaml` in the `base/` directory
-3. Update the overlays as needed for environment-specific configurations
-4. Add the new service to the `create-ecr-repos.sh` and `build-and-push-images.sh` scripts
-5. Ensure the deployment uses the `ecr-pull-sa` service account
+3. Check HPA status:
+   ```bash
+   kubectl describe hpa <hpa-name> -n letter-image-generator
+   ```
