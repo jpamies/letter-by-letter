@@ -2,10 +2,7 @@ version: '3'
 
 services:
   frontend:
-    build:
-      context: ./frontend
-      args:
-        - PLATFORM=linux/arm64/v8
+    image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-frontend:0.4.2
     platform: linux/arm64/v8
     ports:
       - "3000:3000"
@@ -15,18 +12,16 @@ services:
       - orchestrator
 
   orchestrator:
-    build:
-      context: ./orchestrator-service
-      args:
-        - PLATFORM=linux/arm64/v8
+    image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-orchestrator:0.4.2
     platform: linux/arm64/v8
     ports:
       - "3001:3001"
     environment:
       - PORT=3001
-      - LETTER_SERVICE_BASE_URL=http://letter-service:3003
-      - NUMBER_SERVICE_BASE_URL=http://number-service:3004
-      - SPECIAL_CHAR_SERVICE_URL=http://special-char-service:3005
+      - LOG_LEVEL=debug
+      - LETTER_SERVICE_BASE_URL=http://letter-service:3000
+      - NUMBER_SERVICE_BASE_URL=http://number-service:3000
+      - SPECIAL_CHAR_SERVICE_URL=http://special-char-service:3000
       - IMAGE_COMPOSITOR_SERVICE_URL=http://compositor:3002
     depends_on:
       - compositor
@@ -44,36 +39,31 @@ services:
       - "3002:3002"
     environment:
       - PORT=3002
+      - LOG_LEVEL=debug
       
   letter-service:
-    build:
-      context: ./letter-service
-      args:
-        - PLATFORM=linux/arm64/v8
+    image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-letter:0.4.2
     platform: linux/arm64/v8
     ports:
       - "3003:3000"
     environment:
       - PORT=3000
+      - LOG_LEVEL=debug
       
   number-service:
-    build:
-      context: ./number-service
-      args:
-        - PLATFORM=linux/arm64/v8
+    image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-number:0.4.2
     platform: linux/arm64/v8
     ports:
       - "3004:3000"
     environment:
       - PORT=3000
+      - LOG_LEVEL=debug
       
   special-char-service:
-    build:
-      context: ./special-char-service
-      args:
-        - PLATFORM=linux/arm64/v8
+    image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-special:0.4.2
     platform: linux/arm64/v8
     ports:
       - "3005:3000"
     environment:
       - PORT=3000
+      - LOG_LEVEL=debug

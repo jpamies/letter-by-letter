@@ -10,6 +10,7 @@
 - Implement number services (0-9)
 - Implement special character service
 - Update orchestrator to call actual services instead of mocks
+- Enhanced frontend with detailed metrics and visualizations
 
 ## Third Iteration 🔄
 - Add detailed metrics collection

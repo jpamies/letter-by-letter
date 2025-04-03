@@ -25,10 +25,10 @@ spec:
         image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-special-char-service:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 3005
+        - containerPort: 3000
         env:
         - name: PORT
-          value: "3005"
+          value: "3000"
         resources:
           requests:
             memory: "128Mi"

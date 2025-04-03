@@ -5,7 +5,6 @@ const pinoHttp = require('pino-http');
 
 // Configuration
 const PORT = process.env.PORT || 3000;
-const LETTER = process.env.LETTER || 'A';
 const VERSION = process.env.VERSION || '0.1.0';
 
 // Create logger
@@ -26,6 +25,7 @@ app.use(express.json());
 app.post('/generate', (req, res) => {
   try {
     const style = req.body.style || {};
+    const letter = req.body.letter || 'A';
     
     // Set default style values
     const fontFamily = style.fontFamily || 'Arial';
@@ -58,13 +58,13 @@ app.post('/generate', (req, res) => {
     
     // Draw letter
     ctx.fillStyle = color;
-    ctx.fillText(LETTER, 100, 100);
+    ctx.fillText(letter, 100, 100);
     
     // Apply outline effect if requested
     if (effects.includes('outline')) {
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 2;
-      ctx.strokeText(LETTER, 100, 100);
+      ctx.strokeText(letter, 100, 100);
     }
     
     // Convert to PNG
@@ -78,9 +78,9 @@ app.post('/generate', (req, res) => {
       height: 200
     });
     
-    logger.info(`Generated image for letter ${LETTER}`);
+    logger.info(`Generated image for letter ${letter}`);
   } catch (error) {
-    logger.error({ error }, `Error generating image for letter ${LETTER}`);
+    logger.error({ error }, `Error generating image`);
     res.status(500).json({ error: 'Failed to generate image' });
   }
 });
@@ -90,11 +90,11 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     version: VERSION,
-    letter: LETTER
   });
 });
 
 // Start server
 app.listen(PORT, () => {
-  logger.info(`Letter service for "${LETTER}" listening on port ${PORT}`);
+  logger.info(`Letter service for listening on port ${PORT}`);
+  logger.info(`Letter service listening on port ${PORT}`);
 });

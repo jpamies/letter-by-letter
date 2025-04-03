@@ -112,3 +112,25 @@ The version is stored in the `VERSION` file at the root of the project.
 ## Contributing
 
 Please see the CONTRIBUTING.md file for guidelines on how to contribute to this project.
+## Testing
+
+The project includes comprehensive functional tests for each service:
+
+1. Run tests for all services:
+   ```bash
+   make test
+   ```
+
+2. Run functional tests for a specific service:
+   ```bash
+   # Test the letter service
+   make test-e2e service=letter
+   
+   # Test the number service
+   make test-e2e service=number
+   
+   # Test the special character service
+   make test-e2e service=special
+   ```
+
+These tests verify that each service correctly handles valid inputs, properly validates requests, and responds with appropriate error messages for invalid inputs.

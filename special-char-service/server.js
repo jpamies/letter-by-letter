@@ -7,12 +7,20 @@ const pinoHttp = require('pino-http');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Configure logger
+// Configure logger with more detailed output
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
   formatters: {
     level: (label) => {
       return { level: label };
+    }
+  },
+  transport: {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      translateTime: 'SYS:standard',
+      ignore: 'pid,hostname'
     }
   }
 });
@@ -20,40 +28,74 @@ const logger = pino({
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(pinoHttp({ logger }));
+app.use(pinoHttp({ 
+  logger,
+  // Log all request bodies
+  serializers: {
+    req: (req) => ({
+      id: req.id,
+      method: req.method,
+      url: req.url,
+      body: req.raw.body,
+      headers: req.headers
+    })
+  }
+}));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+  logger.debug('Health check requested');
   res.status(200).json({ status: 'ok' });
 });
 
 // Generate special character image endpoint
 app.post('/generate', (req, res) => {
+  const requestId = req.id;
   try {
+    logger.info({ requestId, body: req.body }, 'Generate special character image request received');
+    
     const { character, style = 'default' } = req.body;
     
     if (!character || typeof character !== 'string' || character.length !== 1) {
+      logger.warn({ requestId, character }, 'Invalid character parameter');
       return res.status(400).json({ error: 'Invalid character parameter. Must be a single character.' });
     }
     
     // Check if the character is a special character (not a letter or number)
     if (/^[a-zA-Z0-9]$/.test(character)) {
+      logger.warn({ requestId, character }, 'Character is not a special character');
       return res.status(400).json({ error: 'Character must be a special character (not a letter or number)' });
     }
     
     // Generate the image
+    logger.debug({ requestId, character, style }, 'Generating special character image');
+    const startTime = Date.now();
     const imageBuffer = generateSpecialCharImage(character, style);
+    const processingTime = Date.now() - startTime;
     
     // Add artificial delay to simulate processing time (optional)
-    const processingTime = Math.floor(Math.random() * 200) + 100; // 100-300ms
+    const artificialDelay = Math.floor(Math.random() * 200) + 100; // 100-300ms
+    
+    logger.info({ 
+      requestId, 
+      character, 
+      style, 
+      processingTime,
+      artificialDelay,
+      imageSize: imageBuffer.length
+    }, 'Special character image generated');
+    
     setTimeout(() => {
       res.set('Content-Type', 'image/png');
       res.send(imageBuffer);
-      
-      logger.info({ character, style, processingTime }, 'Special character image generated');
-    }, processingTime);
+    }, artificialDelay);
   } catch (error) {
-    logger.error({ error: error.message }, 'Error generating special character image');
+    logger.error({ 
+      requestId, 
+      error: error.message,
+      stack: error.stack 
+    }, 'Error generating special character image');
+    
     res.status(500).json({ error: 'Failed to generate special character image' });
   }
 });

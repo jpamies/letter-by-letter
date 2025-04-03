@@ -25,18 +25,18 @@ spec:
         image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-orchestrator:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 3001
+        - containerPort: 3000
         env:
         - name: PORT
-          value: "3001"
+          value: "3000"
         - name: COMPOSITOR_URL
-          value: "http://compositor:3002"
+          value: "http://compositor"
         - name: LETTER_SERVICE_URL
-          value: "http://letter-service:3003"
+          value: "http://letter-service"
         - name: NUMBER_SERVICE_URL
-          value: "http://number-service:3004"
+          value: "http://number-service"
         - name: SPECIAL_CHAR_SERVICE_URL
-          value: "http://special-char-service:3005"
+          value: "http://special-char-service"
         resources:
           requests:
             memory: "256Mi"
@@ -47,12 +47,12 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 3001
+            port: 3000
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 3001
+            port: 3000
           initialDelaySeconds: 5
           periodSeconds: 5

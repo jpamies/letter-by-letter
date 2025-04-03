@@ -9,13 +9,17 @@ RUN apk add --no-cache \
     pango-dev \
     giflib-dev \
     python3 \
-    py3-pip
+    py3-pip \
+    font-noto \
+    font-noto-cjk \
+    font-noto-extra
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+ENV NODE_ENV=production
+RUN npm i --cpu arm64 --only=production
 
 COPY . .
 

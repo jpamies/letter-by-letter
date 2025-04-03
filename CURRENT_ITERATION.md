@@ -1,50 +1,56 @@
-# Current Development Iteration: Second Iteration
+# Current Development Iteration: Third Iteration
 
 ## Status
 🔄 In Progress
 
 ## Goals
-- ✅ Implement actual letter services (A-Z)
-- ✅ Implement number services (0-9)
-- ✅ Implement special character service
-- ✅ Update orchestrator to call actual services instead of mocks
+- Add detailed metrics collection
+- Implement distributed tracing
+- Create visualization dashboard for service performance
+- Add load testing capabilities
 
 ## Implementation Plan
 
-### Letter Services
-1. ✅ Create a base letter service template
-2. ✅ Implement services for each letter (A-Z) using the template
-3. ✅ Each service should:
-   - Accept a request with styling parameters
-   - Generate an image of the letter with the specified styling
-   - Return the image data
+### Metrics Collection
+1. Implement Prometheus metrics in all services
+2. Add custom metrics for:
+   - Request latency
+   - Error rates
+   - Service throughput
+   - Resource utilization
 
-### Number Services
-1. ✅ Create a base number service template
-2. ✅ Implement services for each digit (0-9) using the template
-3. ✅ Each service should follow the same pattern as letter services
+### Distributed Tracing
+1. Implement OpenTelemetry tracing
+2. Add trace context propagation between services
+3. Configure sampling and export to Jaeger/X-Ray
 
-### Special Character Service
-1. ✅ Implement a single service that handles all special characters
-2. ✅ Support common special characters (space, period, comma, etc.)
-3. ✅ Follow the same interface as letter and number services
+### Visualization Dashboard
+1. Set up Grafana for metrics visualization
+2. Create custom dashboards for:
+   - Overall system health
+   - Service-specific metrics
+   - Request flow visualization
+   - Resource utilization
 
-### Orchestrator Updates
-1. ✅ Update the orchestrator to discover and call the actual services
-2. ✅ Implement error handling for service failures
-3. ✅ Add request routing logic based on character type
+### Load Testing
+1. Create load testing scripts using k6 or similar tool
+2. Define test scenarios:
+   - Steady load
+   - Spike testing
+   - Endurance testing
+3. Measure and document scaling behavior
 
 ## Testing Strategy
-1. Unit tests for each service
-2. Integration tests for the orchestrator with actual services
-3. End-to-end tests for the complete flow
+1. Verify metrics collection accuracy
+2. Validate trace context propagation
+3. Test dashboard functionality
+4. Run load tests and analyze results
 
 ## Completion Criteria
-- ✅ All letter services (A-Z) implemented and tested
-- ✅ All number services (0-9) implemented and tested
-- ✅ Special character service implemented and tested
-- ✅ Orchestrator successfully routes requests to appropriate services
-- ✅ End-to-end flow works with actual services
+- All services emit Prometheus metrics
+- Distributed tracing works across service boundaries
+- Dashboards provide clear visualization of system performance
+- Load testing demonstrates EKS AutoMode scaling capabilities
 
 ## Next Steps
-- Move to Third Iteration: Add metrics, tracing, and visualization components
+- Move to Final Stage: Deploy to EKS with AutoMode configuration

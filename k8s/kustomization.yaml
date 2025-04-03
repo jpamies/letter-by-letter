@@ -24,14 +24,14 @@ resources:
 
 images:
   - name: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-frontend
-    newTag: 0.4.0
+    newTag: 0.4.10
   - name: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-orchestrator
-    newTag: 0.4.0
+    newTag: 0.4.10
   - name: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-compositor
-    newTag: 0.4.0
+    newTag: 0.4.10
   - name: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-letter-service
-    newTag: 0.4.0
+    newTag: 0.4.10
   - name: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-number-service
-    newTag: 0.4.0
+    newTag: 0.4.10
   - name: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-special-char-service
-    newTag: 0.4.0
+    newTag: 0.4.10

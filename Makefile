@@ -29,6 +29,45 @@ local-down:
 	@echo "Stopping all services..."
 	$(PODMAN) compose -f podman-compose.yml down
 
+# Testing targets
+.PHONY: test test-e2e
+
+test:
+	@echo "Running all tests..."
+	cd letter-service && npm install && npm test
+	cd number-service && npm install && npm test || true
+	cd special-char-service && npm install && npm test || true
+	cd orchestrator-service && npm install && npm test || true
+
+test-e2e:
+	@echo "Running end-to-end tests..."
+	@if [ "$(service)" = "" ]; then \
+		echo "Please specify a service, e.g., make test-e2e service=letter"; \
+		exit 1; \
+	fi
+	@case "$(service)" in \
+		letter) \
+			echo "Running letter service functional tests..."; \
+			cd letter-service && npm install && TEST_LETTER_SERVICE_URL=http://localhost:3003 npm run test:functional; \
+			;; \
+		number) \
+			echo "Running number service functional tests..."; \
+			cd number-service && npm install && TEST_NUMBER_SERVICE_URL=http://localhost:3004 npm run test:functional; \
+			;; \
+		special) \
+			echo "Running special character service functional tests..."; \
+			cd special-char-service && npm install && TEST_SPECIAL_CHAR_SERVICE_URL=http://localhost:3005 npm run test:functional; \
+			;; \
+		orchestrator) \
+			echo "Running orchestrator service functional tests..."; \
+			cd orchestrator-service && npm install && TEST_ORCHESTRATOR_SERVICE_URL=http://localhost:3001 npm run test:functional; \
+			;; \
+		*) \
+			echo "Unknown service: $(service). Available options: letter, number, special, orchestrator"; \
+			exit 1; \
+			;; \
+	esac
+
 # Kubernetes deployment targets
 .PHONY: k8s-deploy k8s-down k8s-restart k8s-setup-pod-identity k8s-update-version
 
@@ -65,17 +104,43 @@ k8s-setup-pod-identity:
 	cd k8s/scripts && ./setup-pod-identity.sh
 
 # Build targets
-.PHONY: build ecr-build-push
+.PHONY: build ecr-build-push build-service
 
-build: version-patch-bump ecr-build-push
+build: ecr-build-push
+
+docker-login:
+	@echo "Logging in to ECR..."
+	aws ecr get-login-password --region \$(AWS_REGION) | \$(PODMAN) login --username AWS --password-stdin \$(ECR_REGISTRY)
 
 # Build and deploy in one step
 .PHONY: build-deploy
 build-deploy: build k8s-update-version
 
-# Helper function to build and push a service
-# $(1) = service name (e.g., frontend)
-# $(2) = directory name (e.g., frontend)
+build-frontend: docker-login
+	$(call build-push-service,frontend,frontend)
+	@echo "Build and push complete for $(service) version $(VERSION)"
+
+build-letter: docker-login
+	$(call build-push-service,letter-service,letter-service)
+	@echo "Build and push complete for $(service) version $(VERSION)"
+
+build-orchestrator: docker-login
+	$(call build-push-service,orchestrator,orchestrator-service)
+	@echo "Build and push complete for $(service) version $(VERSION)"
+
+build-compositor: docker-login
+	$(call build-push-service,compositor,image-compositor-service)
+	@echo "Build and push complete for $(service) version $(VERSION)"
+
+build-number: docker-login
+	$(call build-push-service,number-service,number-service)
+	@echo "Build and push complete for $(service) version $(VERSION)"
+
+build-special: docker-login
+	$(call build-push-service,special-char-service,special-char-service)
+	@echo "Build and push complete for $(service) version $(VERSION)"
+
+
 define build-push-service
 	@echo "Building $(1) for arm64..."
 	cd $(2) && $(PODMAN) build --platform=$(PLATFORM) -t $(ECR_REGISTRY)/letter-image-generator-$(1):$(VERSION) .
@@ -103,9 +168,9 @@ ecr-build-push:
 	@echo "ARM64 build and push complete for version $(VERSION)"
 
 # Auto version increment
-.PHONY: version-patch-bump
+.PHONY: version-bump
 
-version-patch-bump:
+version-bump:
 	@echo "Incrementing patch version..."
 	@CURRENT_VERSION=$$(cat VERSION); \
 	MAJOR=$$(echo $$CURRENT_VERSION | cut -d. -f1); \
@@ -115,6 +180,7 @@ version-patch-bump:
 	NEW_VERSION="$$MAJOR.$$MINOR.$$NEW_PATCH"; \
 	echo "$$NEW_VERSION" > VERSION; \
 	echo "Version updated from $$CURRENT_VERSION to $$NEW_VERSION"; \
+	VERSION=$$(cat VERSION)
 	git add VERSION; \
 	git commit -m "Bump version to $$NEW_VERSION for deployment" || true
 

@@ -25,10 +25,10 @@ spec:
         image: 037495631109.dkr.ecr.eu-south-2.amazonaws.com/letter-image-generator-compositor:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 3002
+        - containerPort: 3000
         env:
         - name: PORT
-          value: "3002"
+          value: "3000"
         resources:
           requests:
             memory: "256Mi"
@@ -39,12 +39,12 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 3000
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 3000
           initialDelaySeconds: 5
           periodSeconds: 5
